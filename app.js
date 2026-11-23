@@ -380,7 +380,7 @@ function vueAjout(id) {
       <button id="id-plantnet">🔍 Pl@ntNet</button>
       <button id="id-ia">🤖 Demander à une IA</button>
     </div>
-    <div id="id-resultats"></div>
+    <div id="id-resultats">${rendrePropositions(b)}</div>
     <div id="etapes-ia" class="alerte" hidden>
       <b>1.</b> La question est copiée ✓<br>
       <b>2.</b> Choisis ton IA, puis dans le champ de message : appui long → <b>Coller</b>, et envoie.<br>
@@ -420,7 +420,7 @@ function deviner(espece) {
     [/rhododendron|azalea|erica|calluna|camellia|pieris|gardenia|skimmia|vaccinium|hydrangea/, "terre-bruyere"],
     [/phalaenopsis|orchid|dendrobium|cattleya|oncidium|vanda|cymbidium/, "orchidee"],
     [/cact|echeveria|crassula|aeonium|sedum|haworthia|aloe|kalanchoe|sempervivum|opuntia|mammillaria|euphorbia (milii|trigona|tirucalli)/, "succulente"],
-    [/anthurium|spathiphyllum|begonia|cyclamen|saintpaulia|hibiscus|bromeli|guzmania/, "plante-fleurie"],
+    [/anthurium|spathiphyllum|begonia|cyclamen|saintpaulia|hibiscus|bromeli|guzmania|gerbera|chrysanth|kalanchoe|poinsettia|euphorbia pulcherrima|streptocarpus/, "plante-fleurie"],
     [/prunus laurocerasus|choisya|photinia|buxus|ligustrum|eleagnus|abelia|viburnum|pittosporum|escallonia/, "arbuste"],
   ].find(([re]) => re.test(g));
   return r ? r[1] : null;
@@ -428,6 +428,8 @@ function deviner(espece) {
 
 function lireForm() {
   const v = (i) => $(i)?.value?.trim() ?? "";
+  // Si l'utilisateur a retouché un nom proposé, on ne l'écrase plus.
+  if (brouillon.nomAuto && v("f-nom") !== brouillon.nom) brouillon.nomAuto = false;
   Object.assign(brouillon, {
     nom: v("f-nom"), espece: v("f-espece"), type: v("f-type"), lieu: v("f-lieu"),
     emplacement: v("f-emplacement"), contenant: v("f-contenant"), auto: $("f-auto").checked, notes: $("f-notes").value,
@@ -543,24 +545,35 @@ async function identifierPlantNet() {
     const r = await appelPlantNet(`https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(etat.plantnetKey)}&lang=fr&nb-results=3`, { method: "POST", body: fd });
     if (r.status === 404) { res.innerHTML = `<p class="petit">Pl@ntNet ne reconnaît pas de plante sur cette photo. Essaie avec une feuille ou une fleur bien nette, en gros plan.</p>`; return; }
     const j = await r.json();
-    const props = (j.results || []).slice(0, 3);
-    res.innerHTML = props.map((x, i) => {
-      const nom = x.species.commonNames?.[0] || "";
-      return `<button class="choix" data-i="${i}"><b>${esc(x.species.scientificNameWithoutAuthor)}</b> ${nom ? `· ${esc(nom)}` : ""} <span class="petit">${Math.round(x.score * 100)} %</span></button>`;
-    }).join("") + `<p class="petit">Identification par l'API Pl@ntNet (my.plantnet.org).</p>`;
-    res.querySelectorAll(".choix").forEach((bt) => (bt.onclick = () => {
-      const x = props[bt.dataset.i];
-      lireForm();
-      brouillon.espece = x.species.scientificNameWithoutAuthor;
-      if (!brouillon.nom) brouillon.nom = x.species.commonNames?.[0] || "";
-      const t = deviner(brouillon.espece);
-      if (t) brouillon.type = t;
-      rendre();
-      toast(t ? `Type proposé : ${TYPES[t].label}` : "Choisis le type d'entretien");
+    brouillon.propositions = (j.results || []).slice(0, 3).map((x) => ({
+      latin: x.species.scientificNameWithoutAuthor,
+      commun: x.species.commonNames?.[0] || "",
+      score: x.score,
     }));
+    if (!brouillon.propositions.length) { res.innerHTML = `<p class="petit">Aucune proposition.</p>`; return; }
+    choisirProposition(0);
   } catch (e) {
     res.innerHTML = `<p class="petit erreur">${esc(e.message)}</p>`;
   }
+}
+
+function rendrePropositions(b) {
+  if (!b.propositions?.length) return "";
+  return b.propositions.map((x, i) => `<button class="choix ${i === b.choix ? "choisi" : ""}" data-prop="${i}">
+      ${i === b.choix ? "✓ " : ""}<b>${esc(x.latin)}</b>${x.commun ? ` · ${esc(x.commun)}` : ""} <span class="petit">${Math.round(x.score * 100)} %</span></button>`).join("")
+    + `<p class="petit">La proposition la plus probable est appliquée. Touche une autre pour la choisir. Identification par l'API Pl@ntNet.</p>`;
+}
+
+function choisirProposition(i) {
+  lireForm();
+  const x = brouillon.propositions[i];
+  brouillon.choix = i;
+  brouillon.espece = x.latin;
+  if (!brouillon.nom || brouillon.nomAuto) { brouillon.nom = x.commun || x.latin; brouillon.nomAuto = true; }
+  const t = deviner(x.latin);
+  if (t) brouillon.type = t;
+  rendre();
+  toast(t ? `Type proposé : ${TYPES[t].label}` : "Vérifie le type d'entretien");
 }
 
 async function testerCle() {
@@ -714,6 +727,7 @@ function brancher() {
     rendre();
   }));
   on("id-plantnet", "onclick", identifierPlantNet);
+  document.querySelectorAll("button[data-prop]").forEach((bt) => (bt.onclick = () => choisirProposition(+bt.dataset.prop)));
   on("id-ia", "onclick", demanderIA);
   on("appliquer-json", "onclick", () => {
     try { appliquerIA($("f-json").value); rendre(); $("det-ia").open = true; toast("Fiche remplie, vérifie puis enregistre"); }

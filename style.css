@@ -149,3 +149,4 @@ nav a.actif { color: var(--vert); font-weight: 600; }
 .ligne > button, .ligne > .bouton { margin: 0; display: flex; align-items: center; justify-content: center; }
 label.bouton { color: var(--bouton-texte); font-size: 1rem; margin: 0; }
 label.bouton.secondaire { color: var(--texte); }
+.choix.choisi { border-color: var(--bouton); border-width: 2px; background: var(--vert-clair); }
