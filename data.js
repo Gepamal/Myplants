@@ -14,6 +14,35 @@
 
 window.PLANTES = [
   {
+    id: "azalee",
+    nom: "Azalée",
+    emoji: "🌺",
+    espece: "Rhododendron simsii",
+    lieu: "mobile",
+    emplacement: "Intérieur, au frais (12 à 18 °C), loin des radiateurs ; dehors à l'ombre l'été",
+    contenant: "Pot",
+    gel: 0,
+    arrosage: {
+      jours: { hiver: 4, printemps: 4, ete: 3, automne: 4 },
+      consigne: "La motte ne doit jamais sécher. Tremper le pot 10 à 15 min dans de l'eau non calcaire, puis bien égoutter.",
+    },
+    taches: [
+      { id: "fanees", label: "Retirer les fleurs fanées", mois: [11, 12, 1, 2, 3], tousLesJours: 7 },
+      { id: "feuilles", label: "Vérifier le dessous des feuilles (dépôt noir collant = fumagine, pucerons)", tousLesJours: 21 },
+      { id: "taille", label: "Taille légère après la floraison", mois: [4] },
+      { id: "rempotage", label: "Rempoter en terre de bruyère, pot à peine plus grand", mois: [4, 5] },
+      { id: "engrais", label: "Engrais terre de bruyère", mois: [4, 5, 6, 7, 8], tousLesJours: 21 },
+      { id: "sortir", label: "Sortir à l'ombre légère (après les gelées)", mois: [5, 6] },
+      { id: "rentrer", label: "Rentrer avant les gelées, au frais (10 à 15 °C) pour former les boutons", mois: [10, 11], faitLe: "2026-11-22" },
+    ],
+    fiche: [
+      "Le froid relatif de l'automne déclenche la formation des boutons : sans lui, elle refleurit mal.",
+      "Eau non calcaire uniquement (pluie, déminéralisée, filtrée).",
+      "Toxique pour les chats et chiens.",
+    ],
+    notes: "",
+  },
+  {
     id: "citronnier",
     nom: "Citronnier",
     emoji: "🍋",
@@ -277,3 +306,101 @@ window.PLANTES = [
     notes: "",
   },
 ];
+
+// Modèles utilisés quand on ajoute une plante depuis l'app.
+window.TYPES = {
+  "plante-verte": {
+    label: "Plante verte d'intérieur", emoji: "🌿", gel: 10,
+    jours: { hiver: 10, printemps: 7, ete: 5, automne: 8 },
+    consigne: "Quand les 2 à 3 premiers cm sont secs. Vider la soucoupe.",
+    taches: [
+      { id: "engrais", label: "Engrais plantes vertes", mois: [4, 5, 6, 7, 8, 9], tousLesJours: 30 },
+      { id: "feuilles", label: "Dépoussiérer les feuilles", tousLesJours: 30 },
+      { id: "rempotage", label: "Rempoter si les racines débordent", mois: [3, 4] },
+    ],
+    fiche: ["Lumière vive sans soleil direct brûlant.", "L'excès d'eau tue plus que la soif."],
+  },
+  "plante-fleurie": {
+    label: "Plante fleurie d'intérieur", emoji: "🌼", gel: 10,
+    jours: { hiver: 8, printemps: 6, ete: 4, automne: 7 },
+    consigne: "Quand le dessus est sec. Vider la soucoupe.",
+    taches: [
+      { id: "engrais", label: "Engrais plantes fleuries", mois: [3, 4, 5, 6, 7, 8, 9], tousLesJours: 21 },
+      { id: "fanees", label: "Retirer les fleurs fanées", tousLesJours: 14 },
+      { id: "rempotage", label: "Rempoter si nécessaire", mois: [3, 4] },
+    ],
+    fiche: ["Beaucoup de lumière pour refleurir."],
+  },
+  "succulente": {
+    label: "Succulente / cactus", emoji: "🌵", gel: 5,
+    jours: { hiver: 21, printemps: 14, ete: 10, automne: 14 },
+    consigne: "Terre complètement sèche avant d'arroser.",
+    taches: [
+      { id: "engrais", label: "Engrais cactées", mois: [4, 5, 6, 7, 8], tousLesJours: 45 },
+      { id: "rempotage", label: "Rempoter en terreau cactées", mois: [3, 4] },
+    ],
+    fiche: ["Lumière maximale. Une plante qui s'allonge manque de lumière."],
+  },
+  "orchidee": {
+    label: "Orchidée", emoji: "🌸", gel: 12,
+    jours: { hiver: 10, printemps: 7, ete: 7, automne: 8 },
+    consigne: "Quand les racines sont argentées : tremper 10 min, puis bien égoutter.",
+    taches: [
+      { id: "engrais", label: "Engrais orchidées", mois: [3, 4, 5, 6, 7, 8, 9, 10], tousLesJours: 21 },
+      { id: "rempotage", label: "Rempoter en écorces après la floraison", mois: [4, 5] },
+    ],
+    fiche: ["Jamais d'eau stagnante au fond du cache-pot."],
+  },
+  "agrume": {
+    label: "Agrume en pot", emoji: "🍋", gel: 5,
+    jours: { hiver: 10, printemps: 6, ete: 3, automne: 6 },
+    consigne: "Quand les 4 à 5 cm du dessus sont secs. Arroser à fond, vider la soucoupe.",
+    taches: [
+      { id: "cochenilles", label: "Inspecter le dessous des feuilles (cochenilles)", tousLesJours: 14 },
+      { id: "engrais", label: "Engrais agrumes avec fer", mois: [3, 4, 5, 6, 7, 8, 9, 10], tousLesJours: 21 },
+      { id: "taille", label: "Taille légère", mois: [3] },
+    ],
+    fiche: ["Hiver idéal : 10 à 15 °C et beaucoup de lumière.", "Feuilles pâles = chlorose : eau peu calcaire et engrais avec fer."],
+  },
+  "mediterraneenne": {
+    label: "Méditerranéenne (olivier, laurier, lavande…)", emoji: "🫒", gel: -5,
+    jours: { hiver: 14, printemps: 8, ete: 4, automne: 8 },
+    consigne: "Quand les 4 à 5 cm du dessus sont secs. Craint l'eau stagnante.",
+    taches: [
+      { id: "engrais", label: "Engrais méditerranéennes", mois: [4, 5, 6, 7, 8, 9], tousLesJours: 30 },
+      { id: "taille", label: "Taille de forme", mois: [3, 4] },
+    ],
+    fiche: ["Plein soleil. Un hiver frais lui convient mieux que la chaleur d'un intérieur."],
+  },
+  "terre-bruyere": {
+    label: "Terre de bruyère (azalée, camélia, bruyère…)", emoji: "💮", gel: -5,
+    jours: { hiver: 5, printemps: 4, ete: 3, automne: 4 },
+    consigne: "Motte toujours fraîche, jamais détrempée. Eau non calcaire.",
+    taches: [
+      { id: "engrais", label: "Engrais terre de bruyère", mois: [4, 5, 6, 7, 8], tousLesJours: 21 },
+      { id: "taille", label: "Taille légère après la floraison", mois: [4, 5] },
+      { id: "rempotage", label: "Rempoter en terre de bruyère", mois: [4, 5] },
+    ],
+    fiche: ["Sol acide indispensable : jamais de calcaire."],
+  },
+  "arbuste": {
+    label: "Arbuste ou haie en pleine terre", emoji: "🌳", gel: -10,
+    jours: { hiver: null, printemps: null, ete: null, automne: null },
+    consigne: "Pas d'arrosage une fois installé, sauf sécheresse prolongée ou les deux premiers étés.",
+    taches: [
+      { id: "taille", label: "Taille (après la floraison pour les arbustes à fleurs)", mois: [6] },
+      { id: "paillage", label: "Pailler le pied avant l'hiver", mois: [11] },
+    ],
+    fiche: [],
+  },
+  "pot-exterieur": {
+    label: "Plante en pot à l'extérieur", emoji: "🪴", gel: -5,
+    jours: { hiver: null, printemps: 5, ete: 2, automne: 6 },
+    consigne: "En pot dehors, ça sèche vite l'été : vérifier souvent quand il fait chaud.",
+    taches: [
+      { id: "engrais", label: "Engrais", mois: [4, 5, 6, 7], tousLesJours: 30 },
+      { id: "protection", label: "Protéger le pot du gel (voile, pot surélevé, isolant)", mois: [11, 12] },
+    ],
+    fiche: ["Les racines en pot gèlent plus vite qu'en pleine terre."],
+  },
+};

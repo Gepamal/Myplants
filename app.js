@@ -2,7 +2,11 @@
 
 // ---------- état local ----------
 const CLE = "plantes.v1";
-const etatDefaut = () => ({ last: {}, snooze: {}, log: [], notes: {}, meteo: null, lieu: null });
+const etatDefaut = () => ({
+  last: {}, snooze: {}, log: [], notes: {}, meteo: null, lieu: null,
+  plantesPerso: [], photos: {}, masquees: [], rythme: {},
+  theme: "clair", plantnetKey: "",
+});
 let etat = charger();
 
 function charger() {
@@ -13,7 +17,13 @@ function charger() {
   }
 }
 function sauver() {
-  try { localStorage.setItem(CLE, JSON.stringify(etat)); } catch {}
+  try {
+    localStorage.setItem(CLE, JSON.stringify(etat));
+    return true;
+  } catch {
+    toast("Stockage plein : supprime des photos ou exporte tes données");
+    return false;
+  }
 }
 
 // ---------- dates (toujours en local, format AAAA-MM-JJ) ----------
@@ -21,7 +31,7 @@ const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 const ajout = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
-const ecart = (a, b) => Math.round((parse(b) - parse(a)) / 86400000); // b - a en jours
+const ecart = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
 const aujourdhui = () => iso(new Date());
 const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 const JOURS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
@@ -34,11 +44,8 @@ function saison(s) {
   if (m <= 8) return "ete";
   return "automne";
 }
-
-// Premier jour de la fenêtre de mois qui contient la date s.
 function debutFenetre(mois, s) {
-  const d = parse(s);
-  d.setDate(1);
+  const d = parse(s); d.setDate(1);
   for (let i = 0; i < 12; i++) {
     const prec = new Date(d.getFullYear(), d.getMonth() - 1, 1);
     if (!mois.includes(prec.getMonth() + 1)) break;
@@ -46,10 +53,8 @@ function debutFenetre(mois, s) {
   }
   return iso(d);
 }
-// Premier jour de la prochaine fenêtre qui commence après s (en sautant la fenêtre en cours).
 function prochaineFenetre(mois, s) {
-  const d = parse(s);
-  d.setDate(1);
+  const d = parse(s); d.setDate(1);
   let dansFenetre = mois.includes(d.getMonth() + 1);
   for (let i = 0; i < 24; i++) {
     d.setMonth(d.getMonth() + 1);
@@ -59,10 +64,8 @@ function prochaineFenetre(mois, s) {
   }
   return null;
 }
-// Dernier jour de la fenêtre en cours.
 function finFenetre(mois, s) {
-  const d = parse(s);
-  d.setDate(1);
+  const d = parse(s); d.setDate(1);
   for (let i = 0; i < 12; i++) {
     const suiv = new Date(d.getFullYear(), d.getMonth() + 1, 1);
     if (!mois.includes(suiv.getMonth() + 1)) break;
@@ -71,23 +74,32 @@ function finFenetre(mois, s) {
   return iso(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 }
 
+// ---------- plantes ----------
+const lesPlantes = () => [
+  ...PLANTES.filter((p) => !etat.masquees.includes(p.id)),
+  ...etat.plantesPerso,
+];
+const plante = (id) => PLANTES.find((p) => p.id === id) || etat.plantesPerso.find((p) => p.id === id);
+
 // ---------- moteur de tâches ----------
 const cle = (p, t) => `${p.id}:${t}`;
 const dernier = (p, t, seed) => etat.last[cle(p, t)] || seed || null;
+const rythme = (p) => etat.rythme[p.id] || 1;
 
 function position(p) {
   if (p.lieu !== "mobile") return p.lieu === "exterieur" ? "dehors" : "dedans";
   const s = dernier(p, "sortir", p.taches.find((t) => t.id === "sortir")?.faitLe);
   const r = dernier(p, "rentrer", p.taches.find((t) => t.id === "rentrer")?.faitLe);
-  if (s && (!r || s > r)) return "dehors";
-  return "dedans";
+  return s && (!r || s > r) ? "dehors" : "dedans";
 }
+const nomPosition = (p) => (position(p) === "dehors" ? "extérieur" : "intérieur");
 
 function tachesDe(p, auj) {
   const out = [];
   const a = p.arrosage;
-  const jours = a?.jours?.[saison(auj)];
-  if (jours) {
+  const base = a?.jours?.[saison(auj)];
+  if (base) {
+    const jours = Math.max(1, Math.round(base * rythme(p)));
     const k = cle(p, "arrosage");
     let due = null, info = null;
     if (a.bloquePar) {
@@ -112,14 +124,14 @@ function tachesDe(p, auj) {
       type = "ponctuel";
       if (fait) continue;
       due = t.date;
-    } else if (t.mois && t.tousLesJours) {
+    } else if (t.mois?.length && t.tousLesJours) {
       type = "recurrent";
       if (t.mois.includes(parse(auj).getMonth() + 1)) {
         const ws = debutFenetre(t.mois, auj);
         due = !fait || fait < ws ? ws : ajout(fait, t.tousLesJours);
         if (!t.mois.includes(parse(due).getMonth() + 1)) due = prochaineFenetre(t.mois, auj);
       } else due = prochaineFenetre(t.mois, auj);
-    } else if (t.mois) {
+    } else if (t.mois?.length) {
       type = "annuel";
       if (t.mois.includes(parse(auj).getMonth() + 1)) {
         const ws = debutFenetre(t.mois, auj);
@@ -139,24 +151,27 @@ function tachesDe(p, auj) {
   }
   return out;
 }
-
-const toutes = (auj) => PLANTES.flatMap((p) => tachesDe(p, auj));
+const toutes = (auj) => lesPlantes().flatMap((p) => tachesDe(p, auj));
 
 // ---------- actions ----------
 let annulation = null;
 function agir(k, action) {
   annulation = JSON.stringify(etat);
   const auj = aujourdhui();
+  const [pid, tid] = k.split(":");
   if (action === "fait") {
     etat.last[k] = auj;
     delete etat.snooze[k];
-  } else if (action === "pasbesoin") etat.snooze[k] = ajout(auj, 2);
-  else if (action === "plustard") etat.snooze[k] = ajout(auj, 7);
+  } else if (action === "pasbesoin") {
+    etat.snooze[k] = ajout(auj, 2);
+    // La terre n'était pas sèche : on espace un peu les prochaines vérifications.
+    if (tid === "arrosage") etat.rythme[pid] = Math.min(3, +((etat.rythme[pid] || 1) * 1.15).toFixed(2));
+  } else if (action === "plustard") etat.snooze[k] = ajout(auj, 7);
   etat.log.unshift({ k, action, date: auj });
   etat.log = etat.log.slice(0, 500);
   sauver();
   rendre();
-  toast({ fait: "C'est noté ✓", pasbesoin: "Revu dans 2 jours", plustard: "Revu dans 7 jours" }[action], true);
+  toast({ fait: "C'est noté ✓", pasbesoin: "Revu dans 2 jours, rythme espacé", plustard: "Revu dans 7 jours" }[action], true);
 }
 
 function toast(msg, avecAnnuler) {
@@ -183,8 +198,8 @@ async function majMeteo(force) {
     const j = await r.json();
     etat.meteo = { t: Date.now(), jours: j.daily.time.map((d, i) => ({ d, min: j.daily.temperature_2m_min[i], max: j.daily.temperature_2m_max[i], pluie: j.daily.precipitation_sum[i] })) };
     sauver();
-    rendre();
-  } catch { /* hors ligne : on garde l'ancienne */ }
+    if (!location.hash.startsWith("#/ajouter") && !location.hash.startsWith("#/modifier")) rendre();
+  } catch { /* hors ligne */ }
 }
 
 function alertesMeteo(auj) {
@@ -193,7 +208,7 @@ function alertesMeteo(auj) {
   if (!jours.length) return out;
   const plusFroid = jours.reduce((a, b) => (b.min < a.min ? b : a));
   const mois = parse(auj).getMonth() + 1;
-  for (const p of PLANTES) {
+  for (const p of lesPlantes()) {
     if (p.gel == null) continue;
     const pos = position(p);
     if (pos === "dehors" && plusFroid.min < p.gel) {
@@ -208,27 +223,48 @@ function alertesMeteo(auj) {
   return out;
 }
 
+// ---------- photos ----------
+function compresser(file, max) {
+  return new Promise((ok, ko) => {
+    const img = new Image();
+    img.onload = () => {
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * r);
+      c.height = Math.round(img.height * r);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      ok(c.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = ko;
+    img.src = URL.createObjectURL(file);
+  });
+}
+const dataUrlVersBlob = async (u) => (await fetch(u)).blob();
+
 // ---------- rendu ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const $app = () => document.getElementById("app");
+const $ = (id) => document.getElementById(id);
+const vignette = (p, cls = "") => etat.photos[p.id]
+  ? `<img class="vignette ${cls}" src="${etat.photos[p.id]}" alt="">`
+  : `<span class="emoji ${cls}">${p.emoji || "🌱"}</span>`;
 
 function ligneTache(x, auj, compacte) {
   const retard = ecart(x.due, auj);
-  let quand = "";
+  let quand;
   if (x.limite) quand = `avant le ${joli(x.limite)}`;
   else if (retard > 0 && !x.dernierFait) quand = "à faire";
   else if (retard > 0) quand = `en retard de ${retard} j`;
   else if (retard === 0) quand = "aujourd'hui";
   else quand = joli(x.due);
-  const second = x.type === "arrosage" ? "pasbesoin" : "plustard";
-  const secondLabel = x.type === "arrosage" ? "Pas besoin" : "Plus tard";
+  const arrosage = x.type === "arrosage";
   return `<li class="tache ${retard > 0 && !x.limite && x.dernierFait ? "retard" : ""}">
-    <div class="t-tete"><span class="emoji">${x.p.emoji}</span>
+    <div class="t-tete">${vignette(x.p)}
       <div><a class="t-plante" href="#/plante/${x.p.id}">${esc(x.p.nom)}</a>
       <div class="t-label">${esc(x.label)}</div>
       ${x.consigne && !compacte ? `<div class="t-consigne">${esc(x.consigne)}</div>` : ""}
       <div class="t-quand">${quand}</div></div></div>
-    ${compacte ? "" : `<div class="t-actions"><button class="ok" data-k="${x.k}" data-a="fait">Fait</button><button data-k="${x.k}" data-a="${second}">${secondLabel}</button></div>`}
+    ${compacte ? "" : `<div class="t-actions"><button class="ok" data-k="${x.k}" data-a="fait">Fait</button><button data-k="${x.k}" data-a="${arrosage ? "pasbesoin" : "plustard"}">${arrosage ? "Pas besoin" : "Plus tard"}</button></div>`}
   </li>`;
 }
 
@@ -253,23 +289,25 @@ function vueJour() {
 function vuePlantes() {
   const auj = aujourdhui();
   const groupe = (titre, f) => {
-    const ps = PLANTES.filter(f);
+    const ps = lesPlantes().filter(f);
+    if (!ps.length) return "";
     return `<h2>${titre}</h2><ul class="cartes">${ps.map((p) => {
       const ts = tachesDe(p, auj).filter((x) => x.due).sort((a, b) => a.due.localeCompare(b.due));
       const n = ts.filter((x) => x.due <= auj).length;
       const prochaine = ts[0];
-      return `<li><a href="#/plante/${p.id}"><span class="emoji gros">${p.emoji}</span>
+      return `<li><a href="#/plante/${p.id}">${vignette(p, "gros")}
         <div><b>${esc(p.nom)}</b><small>${esc(p.espece)}</small>
         <small>${n ? `<span class="badge">${n}</span> à faire` : prochaine ? `Prochain : ${joli(prochaine.due)}` : ""}</small></div></a></li>`;
     }).join("")}</ul>`;
   };
   return `<h1>Mes plantes</h1>
-    ${groupe("Dedans", (p) => position(p) === "dedans")}
-    ${groupe("Dehors", (p) => position(p) === "dehors")}`;
+    <a class="bouton large" href="#/ajouter">＋ Ajouter une plante</a>
+    ${groupe("Intérieur", (p) => position(p) === "dedans")}
+    ${groupe("Extérieur", (p) => position(p) === "dehors")}`;
 }
 
 function vuePlante(id) {
-  const p = PLANTES.find((x) => x.id === id);
+  const p = plante(id);
   if (!p) return `<p>Plante inconnue.</p>`;
   const auj = aujourdhui();
   const ts = tachesDe(p, auj);
@@ -280,82 +318,389 @@ function vuePlante(id) {
   };
   const nomAction = { fait: "fait", pasbesoin: "vérifié, pas besoin", plustard: "reporté" };
   const a = p.arrosage;
-  const freq = a?.jours && Object.values(a.jours).some((v) => v)
-    ? `<p class="petit">Vérification indicative : hiver ${a.jours.hiver ?? "-"} j · printemps ${a.jours.printemps ?? "-"} j · été ${a.jours.ete ?? "-"} j · automne ${a.jours.automne ?? "-"} j</p>` : "";
+  const r = rythme(p);
+  const aDesJours = a?.jours && Object.values(a.jours).some((v) => v);
+  const fmt = (v) => (v ? `${Math.max(1, Math.round(v * r))} j` : "-");
   return `
     <a class="retour" href="#/plantes">‹ Plantes</a>
-    <h1><span class="emoji">${p.emoji}</span> ${esc(p.nom)}</h1>
+    ${etat.photos[p.id] ? `<img class="photo-plante" src="${etat.photos[p.id]}" alt="">` : ""}
+    <h1>${etat.photos[p.id] ? "" : `<span class="emoji">${p.emoji || "🌱"}</span> `}${esc(p.nom)}</h1>
     <p class="espece">${esc(p.espece)}</p>
-    <dl><dt>Où</dt><dd>${esc(p.emplacement)} · <b>${position(p)}</b></dd>
+    <dl><dt>Où</dt><dd>${esc(p.emplacement)} · <b>${nomPosition(p)}</b></dd>
     ${p.contenant ? `<dt>Contenant</dt><dd>${esc(p.contenant)}</dd>` : ""}</dl>
-    ${a?.consigne ? `<h2>Arrosage</h2><p>${esc(a.consigne)}</p>${freq}` : ""}
+    ${a?.consigne ? `<h2>Arrosage</h2><p>${esc(a.consigne)}</p>` : ""}
+    ${aDesJours ? `<p class="petit">Vérification : hiver ${fmt(a.jours.hiver)} · printemps ${fmt(a.jours.printemps)} · été ${fmt(a.jours.ete)} · automne ${fmt(a.jours.automne)}</p>
+      <div class="ligne rythme"><span class="petit">Rythme ${r === 1 ? "de base" : r > 1 ? `espacé de ${Math.round((r - 1) * 100)} %` : `resserré de ${Math.round((1 - r) * 100)} %`}</span>
+      <button data-rythme="0.85">Plus souvent</button><button data-rythme="1.15">Moins souvent</button>${r !== 1 ? `<button data-rythme="reset">Réinitialiser</button>` : ""}</div>` : ""}
     ${p.fiche?.length ? `<h2>À savoir</h2><ul class="puces">${p.fiche.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
     <h2>Tâches</h2>
-    <ul class="liste">${ts.map((x) => x.due ? ligneTache(x, auj) : `<li class="tache pause">${esc(x.label)}</li>`).join("")}</ul>
+    <ul class="liste">${ts.map((x) => (x.due ? ligneTache(x, auj) : `<li class="tache pause">${esc(x.label)}</li>`)).join("") || `<li class="vide">Aucune tâche.</li>`}</ul>
     <h2>Mes notes</h2>
     <textarea id="notes" rows="4" placeholder="Observations, traitements, changement d'emplacement…">${esc(etat.notes[p.id] ?? p.notes ?? "")}</textarea>
     <h2>Historique</h2>
-    ${hist.length ? `<ul class="hist">${hist.map((l) => `<li><span>${joli(l.date)}</span> ${esc(labelDe(l.k))} : ${nomAction[l.action] || l.action}</li>`).join("")}</ul>` : `<p class="vide">Rien encore.</p>`}`;
+    ${hist.length ? `<ul class="hist">${hist.map((l) => `<li><span>${joli(l.date)}</span> ${esc(labelDe(l.k))} : ${nomAction[l.action] || l.action}</li>`).join("")}</ul>` : `<p class="vide">Rien encore.</p>`}
+    <h2>Gérer</h2>
+    <div class="ligne wrap">
+      <label class="bouton secondaire">📷 ${etat.photos[p.id] ? "Changer la photo" : "Ajouter une photo"}<input id="photo-plante" type="file" accept="image/*" hidden></label>
+      ${p.perso
+        ? `<a class="bouton secondaire" href="#/modifier/${p.id}">Modifier</a><button id="supprimer" class="danger">Supprimer</button>`
+        : `<button id="masquer" class="danger">Masquer cette plante</button>`}
+    </div>`;
 }
 
+// ---------- ajout / modification ----------
+let brouillon = null;
+
+function nouveauBrouillon(p) {
+  if (p) return {
+    id: p.id, nom: p.nom, espece: p.espece, type: p.type || "plante-verte", lieu: p.lieu,
+    emplacement: p.emplacement, contenant: p.contenant === "Pleine terre" ? "pleine-terre" : "pot",
+    auto: !!p.arrosageAuto, notes: etat.notes[p.id] ?? p.notes ?? "", photo: etat.photos[p.id] || null, ia: p.ia || null,
+  };
+  return { nom: "", espece: "", type: "plante-verte", lieu: "interieur", emplacement: "", contenant: "pot", auto: false, notes: "", photo: null, ia: null };
+}
+
+const optionsType = (v) => Object.entries(TYPES).map(([k, t]) => `<option value="${k}" ${k === v ? "selected" : ""}>${t.emoji} ${esc(t.label)}</option>`).join("");
+
+function vueAjout(id) {
+  const existant = id ? plante(id) : null;
+  if (!brouillon || brouillon.id !== (existant?.id)) brouillon = nouveauBrouillon(existant);
+  const b = brouillon;
+  return `
+    <a class="retour" href="${existant ? `#/plante/${existant.id}` : "#/plantes"}">‹ Retour</a>
+    <h1>${existant ? "Modifier" : "Ajouter une plante"}</h1>
+    <label class="zone-photo">${b.photo ? `<img src="${b.photo}" alt="">` : `<span>📷<br>Prendre ou choisir une photo</span>`}
+      <input id="f-photo" type="file" accept="image/*" hidden></label>
+    <h2>Identifier</h2>
+    <div class="ligne">
+      <button id="id-plantnet">🔍 Pl@ntNet</button>
+      <button id="id-ia">🤖 Demander à une IA</button>
+    </div>
+    <div id="id-resultats"></div>
+    <details id="det-ia" ${b.ia ? "" : ""}><summary>Coller la réponse de l'IA</summary>
+      <textarea id="f-json" rows="5" placeholder="Colle ici la réponse (le bloc JSON)"></textarea>
+      <button id="appliquer-json">Remplir la fiche</button>
+      ${b.ia ? `<p class="petit">✓ Fiche de l'IA appliquée : arrosage, tâches et conseils viendront de sa réponse.</p>` : ""}
+    </details>
+    <h2>Fiche</h2>
+    <label>Nom ou surnom<input id="f-nom" value="${esc(b.nom)}" placeholder="ex. Azalée du salon"></label>
+    <label>Espèce<input id="f-espece" value="${esc(b.espece)}" placeholder="ex. Rhododendron simsii"></label>
+    <label>Type d'entretien<select id="f-type">${optionsType(b.type)}</select></label>
+    <label>Où vit-elle ?<select id="f-lieu">
+      <option value="interieur" ${b.lieu === "interieur" ? "selected" : ""}>Intérieur toute l'année</option>
+      <option value="exterieur" ${b.lieu === "exterieur" ? "selected" : ""}>Extérieur toute l'année</option>
+      <option value="mobile" ${b.lieu === "mobile" ? "selected" : ""}>Intérieur l'hiver, extérieur l'été</option>
+    </select></label>
+    <label>Emplacement<input id="f-emplacement" value="${esc(b.emplacement)}" placeholder="ex. séjour, fenêtre plein sud"></label>
+    <label>Contenant<select id="f-contenant">
+      <option value="pot" ${b.contenant === "pot" ? "selected" : ""}>En pot</option>
+      <option value="pleine-terre" ${b.contenant === "pleine-terre" ? "selected" : ""}>Pleine terre</option>
+    </select></label>
+    <label class="case"><input id="f-auto" type="checkbox" ${b.auto ? "checked" : ""}> Arrosage automatique (pas de rappel d'arrosage)</label>
+    <label>Notes<textarea id="f-notes" rows="3">${esc(b.notes)}</textarea></label>
+    <button id="enregistrer" class="ok large">Enregistrer</button>`;
+}
+
+// Devine un type à partir du nom latin.
+function deviner(espece) {
+  const g = (espece || "").toLowerCase();
+  const r = [
+    [/citrus|fortunella|kumquat/, "agrume"],
+    [/olea|laurus|nerium|lavand|rosmarin|salvia|thym|cistus|myrtus|punica|ficus carica/, "mediterraneenne"],
+    [/rhododendron|azalea|erica|calluna|camellia|pieris|gardenia|skimmia|vaccinium|hydrangea/, "terre-bruyere"],
+    [/phalaenopsis|orchid|dendrobium|cattleya|oncidium|vanda|cymbidium/, "orchidee"],
+    [/cact|echeveria|crassula|aeonium|sedum|haworthia|aloe|kalanchoe|sempervivum|opuntia|mammillaria|euphorbia (milii|trigona|tirucalli)/, "succulente"],
+    [/anthurium|spathiphyllum|begonia|cyclamen|saintpaulia|hibiscus|bromeli|guzmania/, "plante-fleurie"],
+    [/prunus laurocerasus|choisya|photinia|buxus|ligustrum|eleagnus|abelia|viburnum|pittosporum|escallonia/, "arbuste"],
+  ].find(([re]) => re.test(g));
+  return r ? r[1] : null;
+}
+
+function lireForm() {
+  const v = (i) => $(i)?.value?.trim() ?? "";
+  Object.assign(brouillon, {
+    nom: v("f-nom"), espece: v("f-espece"), type: v("f-type"), lieu: v("f-lieu"),
+    emplacement: v("f-emplacement"), contenant: v("f-contenant"), auto: $("f-auto").checked, notes: $("f-notes").value,
+  });
+}
+
+function construirePlante(b, existant) {
+  const t = TYPES[b.type] || TYPES["plante-verte"];
+  const ia = b.ia || {};
+  const sansRappel = b.auto || (b.contenant === "pleine-terre" && b.lieu === "exterieur");
+  const nulls = { hiver: null, printemps: null, ete: null, automne: null };
+  let jours = ia.jours || { ...t.jours };
+  if (sansRappel) jours = nulls;
+  let taches = (ia.taches || t.taches).map((x) => ({ ...x }));
+  const auj = aujourdhui();
+  const m = parse(auj).getMonth() + 1;
+  if (b.lieu === "mobile" && !taches.some((x) => x.id === "sortir")) {
+    taches.push({ id: "sortir", label: "Sortir (nuits au-dessus de 8 °C)", mois: [5, 6] });
+    // Ajoutée entre octobre et avril : on considère qu'elle est déjà rentrée.
+    taches.push({ id: "rentrer", label: "Rentrer avant les nuits froides", mois: [10, 11], faitLe: m >= 10 || m <= 4 ? auj : undefined });
+  }
+  return {
+    id: existant?.id || "perso-" + Date.now().toString(36),
+    perso: true,
+    type: b.type,
+    ia: b.ia || null,
+    nom: b.nom || b.espece || "Sans nom",
+    emoji: t.emoji,
+    espece: b.espece || "Espèce inconnue",
+    lieu: b.lieu,
+    emplacement: b.emplacement || (b.lieu === "exterieur" ? "Extérieur" : "Intérieur"),
+    contenant: b.contenant === "pleine-terre" ? "Pleine terre" : "Pot",
+    arrosageAuto: b.auto,
+    gel: ia.gel ?? t.gel,
+    arrosage: { jours, consigne: b.auto ? "Arrosage automatique." : ia.consigne || t.consigne },
+    taches,
+    fiche: ia.fiche || t.fiche,
+    notes: "",
+  };
+}
+
+const PROMPT_IA = (b) => `Identifie la plante sur la photo et propose sa fiche d'entretien pour mon app de suivi.
+Contexte : ${b.lieu === "mobile" ? "intérieur l'hiver, extérieur l'été" : b.lieu === "exterieur" ? "extérieur toute l'année" : "intérieur toute l'année"}${b.emplacement ? `, ${b.emplacement}` : ""}, ${b.contenant === "pleine-terre" ? "en pleine terre" : "en pot"}${b.auto ? ", arrosage automatique" : ""}. Climat : France, hémisphère nord.
+Réponds avec un court commentaire si besoin, puis UNIQUEMENT ce bloc JSON :
+{
+  "nom": "nom commun en français",
+  "espece": "nom latin",
+  "type": "un parmi : ${Object.keys(TYPES).join(", ")}",
+  "gel": température minimale supportée en °C (nombre),
+  "arrosage": {
+    "jours": { "hiver": nombre ou null, "printemps": nombre ou null, "ete": nombre ou null, "automne": nombre ou null },
+    "consigne": "comment vérifier et arroser, en une phrase"
+  },
+  "taches": [ { "label": "tâche", "mois": [numéros de mois 1-12], "tousLesJours": nombre (optionnel, si répété dans ces mois) } ],
+  "fiche": ["conseil clé", "toxicité éventuelle"]
+}
+"jours" = intervalle indicatif entre deux vérifications de l'arrosage.`;
+
+function appliquerIA(texte) {
+  const debut = texte.indexOf("{"), fin = texte.lastIndexOf("}");
+  if (debut < 0 || fin < debut) throw new Error("Pas de JSON trouvé");
+  const j = JSON.parse(texte.slice(debut, fin + 1));
+  const nombre = (x) => (typeof x === "number" && x > 0 ? Math.round(x) : null);
+  const jours = j.arrosage?.jours ? {
+    hiver: nombre(j.arrosage.jours.hiver), printemps: nombre(j.arrosage.jours.printemps),
+    ete: nombre(j.arrosage.jours.ete), automne: nombre(j.arrosage.jours.automne),
+  } : null;
+  const taches = Array.isArray(j.taches) ? j.taches.filter((t) => t && t.label).map((t, i) => {
+    const mois = Array.isArray(t.mois) ? t.mois.map(Number).filter((m) => m >= 1 && m <= 12) : [];
+    const x = { id: "ia" + i, label: String(t.label) };
+    if (mois.length) x.mois = mois;
+    if (nombre(t.tousLesJours)) x.tousLesJours = nombre(t.tousLesJours);
+    return x.mois || x.tousLesJours ? x : null;
+  }).filter(Boolean) : null;
+  lireForm();
+  if (j.nom && !brouillon.nom) brouillon.nom = String(j.nom);
+  if (j.espece) brouillon.espece = String(j.espece);
+  if (j.type && TYPES[j.type]) brouillon.type = j.type;
+  brouillon.ia = {
+    jours, taches,
+    consigne: j.arrosage?.consigne ? String(j.arrosage.consigne) : null,
+    fiche: Array.isArray(j.fiche) ? j.fiche.map(String) : null,
+    gel: typeof j.gel === "number" ? j.gel : null,
+  };
+  for (const k of Object.keys(brouillon.ia)) if (brouillon.ia[k] == null) delete brouillon.ia[k];
+}
+
+async function identifierPlantNet() {
+  lireForm();
+  const res = $("id-resultats");
+  if (!brouillon.photo) { toast("Ajoute d'abord une photo"); return; }
+  if (!etat.plantnetKey) {
+    res.innerHTML = `<p class="petit">Il faut une clé Pl@ntNet gratuite : <a href="#/reglages">Réglages</a>.</p>`;
+    return;
+  }
+  res.innerHTML = `<p class="petit">Identification en cours…</p>`;
+  try {
+    const fd = new FormData();
+    fd.append("images", await dataUrlVersBlob(brouillon.photo), "photo.jpg");
+    fd.append("organs", "auto");
+    const r = await fetch(`https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(etat.plantnetKey)}&lang=fr&nb-results=3`, { method: "POST", body: fd });
+    if (r.status === 404) { res.innerHTML = `<p class="petit">Pl@ntNet ne reconnaît pas de plante sur cette photo. Essaie avec une feuille ou une fleur bien nette.</p>`; return; }
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    const props = (j.results || []).slice(0, 3);
+    res.innerHTML = props.map((x, i) => {
+      const nom = x.species.commonNames?.[0] || "";
+      return `<button class="choix" data-i="${i}"><b>${esc(x.species.scientificNameWithoutAuthor)}</b> ${nom ? `· ${esc(nom)}` : ""} <span class="petit">${Math.round(x.score * 100)} %</span></button>`;
+    }).join("") + `<p class="petit">Identification par l'API Pl@ntNet (my.plantnet.org).</p>`;
+    res.querySelectorAll(".choix").forEach((bt) => (bt.onclick = () => {
+      const x = props[bt.dataset.i];
+      lireForm();
+      brouillon.espece = x.species.scientificNameWithoutAuthor;
+      if (!brouillon.nom) brouillon.nom = x.species.commonNames?.[0] || "";
+      const t = deviner(brouillon.espece);
+      if (t) brouillon.type = t;
+      rendre();
+      toast(t ? `Type proposé : ${TYPES[t].label}` : "Choisis le type d'entretien");
+    }));
+  } catch (e) {
+    res.innerHTML = `<p class="petit">Échec de l'appel à Pl@ntNet. Vérifie ta clé et que <b>gepamal.github.io</b> est bien autorisé dans ton compte Pl@ntNet (option "Expose my API key").</p>`;
+  }
+}
+
+async function demanderIA() {
+  lireForm();
+  const texte = PROMPT_IA(brouillon);
+  try { await navigator.clipboard.writeText(texte); } catch {}
+  $("det-ia").open = true;
+  try {
+    if (brouillon.photo && navigator.canShare) {
+      const fichier = new File([await dataUrlVersBlob(brouillon.photo)], "plante.jpg", { type: "image/jpeg" });
+      if (navigator.canShare({ files: [fichier] })) {
+        await navigator.share({ files: [fichier], text: texte });
+        toast("Question copiée aussi : colle-la si l'app ne l'a pas reprise");
+        return;
+      }
+    }
+    if (navigator.share) { await navigator.share({ text: texte }); return; }
+  } catch { /* partage annulé */ }
+  toast("Question copiée : colle-la dans ton IA avec la photo");
+}
+
+function enregistrer() {
+  lireForm();
+  if (!brouillon.nom && !brouillon.espece) { toast("Donne au moins un nom"); return; }
+  const existant = brouillon.id ? plante(brouillon.id) : null;
+  const p = construirePlante(brouillon, existant);
+  if (existant) etat.plantesPerso = etat.plantesPerso.map((x) => (x.id === p.id ? p : x));
+  else etat.plantesPerso.push(p);
+  if (brouillon.photo) etat.photos[p.id] = brouillon.photo;
+  if (brouillon.notes) etat.notes[p.id] = brouillon.notes;
+  if (!sauver()) return;
+  brouillon = null;
+  location.hash = `#/plante/${p.id}`;
+  toast(existant ? "Modifications enregistrées" : "Plante ajoutée 🌱");
+}
+
+// ---------- réglages ----------
 function lienAgenda() {
   const url = location.href.split("#")[0];
   const demain = ajout(aujourdhui(), 1).replaceAll("-", "");
   const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: "🌱 Plantes : tâches du jour",
-    details: `Ouvrir l'app : ${url}`,
-    dates: `${demain}T090000/${demain}T091000`,
-    ctz: "Europe/Paris",
-    recur: "RRULE:FREQ=DAILY",
+    action: "TEMPLATE", text: "🌱 Plantes : tâches du jour", details: `Ouvrir l'app : ${url}`,
+    dates: `${demain}T090000/${demain}T091000`, ctz: "Europe/Paris", recur: "RRULE:FREQ=DAILY",
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
 
 function vueReglages() {
+  const masquees = PLANTES.filter((p) => etat.masquees.includes(p.id));
+  const th = (v, l) => `<button data-theme="${v}" class="${etat.theme === v ? "ok" : ""}">${l}</button>`;
   return `<h1>Réglages</h1>
+    <h2>Apparence</h2>
+    <div class="ligne">${th("clair", "Clair")}${th("sombre", "Sombre")}${th("auto", "Auto")}</div>
     <h2>Météo</h2>
     <p>${etat.lieu ? `📍 ${esc(etat.lieu.nom)}` : "Aucune ville définie."}</p>
     <div class="ligne"><input id="ville" placeholder="Ville (ex. Paris)"><button id="chercher">Chercher</button></div>
     <div id="resultats"></div>
     <button id="geo">Utiliser ma position</button>
-    <p class="petit">Prévisions Open-Meteo, utilisées pour les alertes gel et le bon moment pour sortir les plantes. La position reste dans ton téléphone.</p>
+    <p class="petit">Prévisions Open-Meteo pour les alertes gel et le bon moment pour sortir les plantes. La position reste dans ton téléphone.</p>
+    <h2>Identification Pl@ntNet</h2>
+    <p class="petit">Crée une clé gratuite sur my.plantnet.org (500 identifications par jour). Dans les réglages de ta clé, coche "Expose my API key" et autorise le domaine <b>gepamal.github.io</b>.</p>
+    <div class="ligne"><input id="cle-plantnet" placeholder="Clé API Pl@ntNet" value="${esc(etat.plantnetKey)}"><button id="sauver-cle">OK</button></div>
     <h2>Rappel quotidien</h2>
     <p>Crée un événement répété chaque jour à 9 h dans Google Agenda, avec le lien vers l'app.</p>
     <a class="bouton" href="${lienAgenda()}" target="_blank" rel="noopener">Ajouter à Google Agenda</a>
+    ${masquees.length ? `<h2>Plantes masquées</h2>${masquees.map((p) => `<button class="choix" data-reafficher="${p.id}">Réafficher : ${esc(p.nom)}</button>`).join("")}` : ""}
     <h2>Sauvegarde</h2>
-    <p class="petit">Ton historique est stocké dans ce navigateur. Exporte-le de temps en temps.</p>
-    <div class="ligne"><button id="export">Exporter</button><label class="bouton">Importer<input id="import" type="file" accept="application/json" hidden></label></div>`;
+    <p class="petit">Tout est stocké dans ce navigateur, photos comprises. Exporte régulièrement.</p>
+    <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept="application/json,.json" hidden></label></div>`;
 }
 
+function appliquerTheme() {
+  const sombre = etat.theme === "sombre" || (etat.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = sombre ? "sombre" : "clair";
+  document.querySelector('meta[name="theme-color"]').content = sombre ? "#161816" : "#1f3d2b";
+}
+
+function fichierExport() {
+  return new File([JSON.stringify(etat)], `plantes-${aujourdhui()}.json`, { type: "application/json" });
+}
+
+// ---------- routeur ----------
 function rendre() {
+  appliquerTheme();
   const h = location.hash || "#/";
   let html;
   if (h.startsWith("#/plante/")) html = vuePlante(decodeURIComponent(h.slice(9)));
   else if (h === "#/plantes") html = vuePlantes();
   else if (h === "#/reglages") html = vueReglages();
+  else if (h === "#/ajouter") html = vueAjout(null);
+  else if (h.startsWith("#/modifier/")) html = vueAjout(decodeURIComponent(h.slice(11)));
   else html = vueJour();
-  $app().innerHTML = html;
-  document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("actif", a.getAttribute("href") === (h.startsWith("#/plante/") ? "#/plantes" : h === "#" ? "#/" : h)));
+  $("app").innerHTML = html;
+  const onglet = /^#\/(plante\/|plantes|ajouter|modifier)/.test(h) ? "#/plantes" : h === "#" ? "#/" : h;
+  document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("actif", a.getAttribute("href") === onglet));
   brancher();
 }
 
 function brancher() {
+  const on = (id, ev, f) => { const el = $(id); if (el) el[ev] = f; };
   document.querySelectorAll("button[data-k]").forEach((b) => (b.onclick = () => agir(b.dataset.k, b.dataset.a)));
-  const notes = document.getElementById("notes");
-  if (notes) notes.oninput = () => { etat.notes[location.hash.slice(9)] = notes.value; sauver(); };
-  const geo = document.getElementById("geo");
-  if (geo) geo.onclick = () => navigator.geolocation.getCurrentPosition(
+
+  // fiche plante
+  const pid = location.hash.startsWith("#/plante/") ? decodeURIComponent(location.hash.slice(9)) : null;
+  on("notes", "oninput", () => { etat.notes[pid] = $("notes").value; sauver(); });
+  document.querySelectorAll("button[data-rythme]").forEach((b) => (b.onclick = () => {
+    const v = b.dataset.rythme;
+    etat.rythme[pid] = v === "reset" ? 1 : Math.min(3, Math.max(0.4, +((etat.rythme[pid] || 1) * +v).toFixed(2)));
+    sauver(); rendre();
+  }));
+  on("photo-plante", "onchange", async () => {
+    const f = $("photo-plante").files[0];
+    if (!f) return;
+    etat.photos[pid] = await compresser(f, 640);
+    if (sauver()) rendre();
+  });
+  on("masquer", "onclick", () => {
+    if (!confirm("Masquer cette plante ? Tu pourras la réafficher dans Réglages.")) return;
+    etat.masquees.push(pid); sauver(); location.hash = "#/plantes";
+  });
+  on("supprimer", "onclick", () => {
+    if (!confirm("Supprimer définitivement cette plante et son historique ?")) return;
+    etat.plantesPerso = etat.plantesPerso.filter((p) => p.id !== pid);
+    delete etat.photos[pid]; delete etat.notes[pid]; delete etat.rythme[pid];
+    etat.log = etat.log.filter((l) => !l.k.startsWith(pid + ":"));
+    sauver(); location.hash = "#/plantes";
+  });
+
+  // ajout
+  on("f-photo", "onchange", async () => {
+    const f = $("f-photo").files[0];
+    if (!f) return;
+    lireForm();
+    brouillon.photo = await compresser(f, 1024);
+    rendre();
+  });
+  on("id-plantnet", "onclick", identifierPlantNet);
+  on("id-ia", "onclick", demanderIA);
+  on("appliquer-json", "onclick", () => {
+    try { appliquerIA($("f-json").value); rendre(); $("det-ia").open = true; toast("Fiche remplie, vérifie puis enregistre"); }
+    catch { toast("Réponse illisible : colle tout le bloc JSON"); }
+  });
+  on("f-type", "onchange", () => { lireForm(); });
+  on("enregistrer", "onclick", enregistrer);
+
+  // réglages
+  document.querySelectorAll("button[data-theme]").forEach((b) => (b.onclick = () => { etat.theme = b.dataset.theme; sauver(); rendre(); }));
+  document.querySelectorAll("button[data-reafficher]").forEach((b) => (b.onclick = () => {
+    etat.masquees = etat.masquees.filter((x) => x !== b.dataset.reafficher); sauver(); rendre();
+  }));
+  on("sauver-cle", "onclick", () => { etat.plantnetKey = $("cle-plantnet").value.trim(); sauver(); toast("Clé enregistrée"); });
+  on("geo", "onclick", () => navigator.geolocation.getCurrentPosition(
     (pos) => { etat.lieu = { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2), nom: "Ma position" }; etat.meteo = null; sauver(); majMeteo(true); rendre(); },
-    () => toast("Position refusée ou indisponible"));
-  const chercher = document.getElementById("chercher");
-  if (chercher) chercher.onclick = async () => {
-    const q = document.getElementById("ville").value.trim();
+    () => toast("Position refusée ou indisponible")));
+  on("chercher", "onclick", async () => {
+    const q = $("ville").value.trim();
     if (!q) return;
     try {
       const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=fr`);
       const j = await r.json();
-      const res = document.getElementById("resultats");
+      const res = $("resultats");
       res.innerHTML = (j.results || []).map((v, i) => `<button class="choix" data-i="${i}">${esc(v.name)}, ${esc(v.admin2 || v.admin1 || "")} (${esc(v.country_code)})</button>`).join("") || "<p>Aucun résultat.</p>";
       res.querySelectorAll(".choix").forEach((b) => (b.onclick = () => {
         const v = j.results[b.dataset.i];
@@ -363,27 +708,37 @@ function brancher() {
         etat.meteo = null; sauver(); majMeteo(true); rendre();
       }));
     } catch { toast("Recherche impossible (hors ligne ?)"); }
-  };
-  const exp = document.getElementById("export");
-  if (exp) exp.onclick = () => {
-    const blob = new Blob([JSON.stringify(etat, null, 2)], { type: "application/json" });
+  });
+  on("export", "onclick", () => {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = URL.createObjectURL(fichierExport());
     a.download = `plantes-${aujourdhui()}.json`;
     a.click();
-  };
-  const imp = document.getElementById("import");
-  if (imp) imp.onchange = async () => {
+  });
+  on("partager", "onclick", async () => {
+    const f = fichierExport();
     try {
-      const data = JSON.parse(await imp.files[0].text());
+      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: "Sauvegarde plantes" });
+      else toast("Partage non disponible ici : utilise Exporter");
+    } catch { /* annulé */ }
+  });
+  on("import", "onchange", async () => {
+    try {
+      const data = JSON.parse(await $("import").files[0].text());
       if (!data.last || !data.log) throw new Error();
       etat = Object.assign(etatDefaut(), data); sauver(); toast("Import réussi"); rendre();
     } catch { toast("Fichier invalide"); }
-  };
+  });
 }
 
-window.addEventListener("hashchange", () => { rendre(); scrollTo(0, 0); });
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { rendre(); majMeteo(); } });
+window.addEventListener("hashchange", () => {
+  if (!/^#\/(ajouter|modifier)/.test(location.hash)) brouillon = null;
+  rendre(); scrollTo(0, 0);
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !/^#\/(ajouter|modifier)/.test(location.hash)) { rendre(); majMeteo(); }
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", appliquerTheme);
 rendre();
 majMeteo();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
