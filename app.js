@@ -79,7 +79,7 @@ const lesPlantes = () => [
   ...PLANTES.filter((p) => !etat.masquees.includes(p.id)),
   ...etat.plantesPerso,
 ];
-const plante = (id) => PLANTES.find((p) => p.id === id) || etat.plantesPerso.find((p) => p.id === id);
+const plante = (id) => etat.plantesPerso.find((p) => p.id === id) || PLANTES.find((p) => p.id === id);
 
 // ---------- moteur de tâches ----------
 const cle = (p, t) => `${p.id}:${t}`;
@@ -364,9 +364,8 @@ function vuePlante(id) {
     <h2>Gérer</h2>
     <div class="ligne wrap">
       <label class="bouton secondaire">📷 ${etat.photos[p.id] ? "Changer la photo" : "Ajouter une photo"}<input id="photo-plante" type="file" accept="image/*" hidden></label>
-      ${p.perso
-        ? `<a class="bouton secondaire" href="#/modifier/${p.id}">Modifier</a><button id="supprimer" class="danger">Supprimer</button>`
-        : `<button id="masquer" class="danger">Masquer cette plante</button>`}
+      <a class="bouton secondaire" href="#/modifier/${p.id}">Modifier</a>
+      <button id="supprimer" class="danger">Supprimer</button>
     </div>`;
 }
 
@@ -376,9 +375,11 @@ let fichierHD = null;
 
 function nouveauBrouillon(p) {
   if (p) return {
-    id: p.id, nom: p.nom, espece: p.espece, type: p.type || "plante-verte", lieu: p.lieu,
-    emplacement: p.emplacement, contenant: p.contenant === "Pleine terre" ? "pleine-terre" : "pot",
-    auto: !!p.arrosageAuto, notes: etat.notes[p.id] ?? p.notes ?? "", photo: etat.photos[p.id] || null, ia: p.ia || null,
+    id: p.id, nom: p.nom, espece: p.espece, type: p.type || deviner(p.espece) || (p.lieu === "exterieur" ? "pot-exterieur" : "plante-verte"), lieu: p.lieu,
+    emplacement: p.emplacement, contenant: /pleine terre/i.test(p.contenant || "") ? "pleine-terre" : "pot",
+    auto: !!p.arrosageAuto, notes: etat.notes[p.id] ?? p.notes ?? "", photo: etat.photos[p.id] || null,
+    // L'entretien actuel de la plante est conservé tel quel.
+    ia: p.ia || { jours: p.arrosage?.jours, consigne: p.arrosage?.consigne, taches: p.taches, fiche: p.fiche, gel: p.gel },
   };
   return { nom: "", espece: "", type: "plante-verte", lieu: "interieur", emplacement: "", contenant: "pot", auto: false, notes: "", photo: null, ia: null };
 }
@@ -479,7 +480,7 @@ function construirePlante(b, existant) {
     type: b.type,
     ia: b.ia || null,
     nom: b.nom || b.espece || "Sans nom",
-    emoji: t.emoji,
+    emoji: existant?.emoji || t.emoji,
     espece: b.espece || "Espèce inconnue",
     lieu: b.lieu,
     emplacement: b.emplacement || (b.lieu === "exterieur" ? "Extérieur" : "Intérieur"),
@@ -632,8 +633,9 @@ function enregistrer() {
   if (!brouillon.nom && !brouillon.espece) { toast("Donne au moins un nom"); return; }
   const existant = brouillon.id ? plante(brouillon.id) : null;
   const p = construirePlante(brouillon, existant);
-  if (existant) etat.plantesPerso = etat.plantesPerso.map((x) => (x.id === p.id ? p : x));
+  if (etat.plantesPerso.some((x) => x.id === p.id)) etat.plantesPerso = etat.plantesPerso.map((x) => (x.id === p.id ? p : x));
   else etat.plantesPerso.push(p);
+  if (PLANTES.some((x) => x.id === p.id) && !etat.masquees.includes(p.id)) etat.masquees.push(p.id);
   if (brouillon.photo) etat.photos[p.id] = brouillon.photo;
   if (brouillon.notes) etat.notes[p.id] = brouillon.notes;
   if (!sauver()) return;
@@ -672,7 +674,7 @@ function vueReglages() {
     <h2>Rappel quotidien</h2>
     <p>Crée un événement répété chaque jour à 9 h dans Google Agenda, avec le lien vers l'app.</p>
     <a class="bouton" href="${lienAgenda()}" target="_blank" rel="noopener">Ajouter à Google Agenda</a>
-    ${masquees.length ? `<h2>Plantes masquées</h2>${masquees.map((p) => `<button class="choix" data-reafficher="${p.id}">Réafficher : ${esc(p.nom)}</button>`).join("")}` : ""}
+    ${masquees.filter((p) => !etat.plantesPerso.some((x) => x.id === p.id)).length ? `<h2>Plantes de départ supprimées</h2>${masquees.filter((p) => !etat.plantesPerso.some((x) => x.id === p.id)).map((p) => `<button class="choix" data-reafficher="${p.id}">Restaurer : ${esc(p.nom)}</button>`).join("")}` : ""}
     <h2>Sauvegarde</h2>
     <p class="petit">Tout est stocké dans ce navigateur, photos comprises. Exporte régulièrement.</p>
     <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept=".json,.txt,application/json,text/plain" hidden></label></div>`;
@@ -726,16 +728,14 @@ function brancher() {
     etat.photos[pid] = await compresser(f, 640);
     if (sauver()) rendre();
   });
-  on("masquer", "onclick", () => {
-    if (!confirm("Masquer cette plante ? Tu pourras la réafficher dans Réglages.")) return;
-    etat.masquees.push(pid); sauver(); location.hash = "#/plantes";
-  });
   on("supprimer", "onclick", () => {
-    if (!confirm("Supprimer définitivement cette plante et son historique ?")) return;
+    if (!confirm("Supprimer cette plante, sa photo et son historique ?")) return;
     etat.plantesPerso = etat.plantesPerso.filter((p) => p.id !== pid);
+    if (PLANTES.some((x) => x.id === pid) && !etat.masquees.includes(pid)) etat.masquees.push(pid);
     delete etat.photos[pid]; delete etat.notes[pid]; delete etat.rythme[pid];
     etat.log = etat.log.filter((l) => !l.k.startsWith(pid + ":"));
-    sauver(); location.hash = "#/plantes";
+    for (const k of Object.keys(etat.last)) if (k.startsWith(pid + ":")) delete etat.last[k];
+    sauver(); location.hash = "#/plantes"; toast("Plante supprimée");
   });
 
   // ajout
