@@ -640,7 +640,7 @@ function vueReglages() {
     ${masquees.length ? `<h2>Plantes masquées</h2>${masquees.map((p) => `<button class="choix" data-reafficher="${p.id}">Réafficher : ${esc(p.nom)}</button>`).join("")}` : ""}
     <h2>Sauvegarde</h2>
     <p class="petit">Tout est stocké dans ce navigateur, photos comprises. Exporte régulièrement.</p>
-    <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept="application/json,.json" hidden></label></div>`;
+    <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept=".json,.txt,application/json,text/plain" hidden></label></div>`;
 }
 
 function appliquerTheme() {
@@ -649,8 +649,11 @@ function appliquerTheme() {
   document.querySelector('meta[name="theme-color"]').content = sombre ? "#161816" : "#1f3d2b";
 }
 
-function fichierExport() {
-  return new File([JSON.stringify(etat)], `plantes-${aujourdhui()}.json`, { type: "application/json" });
+// Android n'accepte de partager que certains types de fichiers : le .json en est exclu, le .txt passe.
+function fichierExport(pourPartage) {
+  return pourPartage
+    ? new File([JSON.stringify(etat)], `plantes-sauvegarde-${aujourdhui()}.txt`, { type: "text/plain" })
+    : new File([JSON.stringify(etat)], `plantes-${aujourdhui()}.json`, { type: "application/json" });
 }
 
 // ---------- routeur ----------
@@ -750,11 +753,12 @@ function brancher() {
     a.click();
   });
   on("partager", "onclick", async () => {
-    const f = fichierExport();
+    const f = fichierExport(true);
+    if (!navigator.canShare?.({ files: [f] })) { toast("Ce navigateur ne permet pas de partager un fichier : utilise Exporter"); return; }
     try {
-      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: "Sauvegarde plantes" });
-      else toast("Partage non disponible ici : utilise Exporter");
-    } catch { /* annulé */ }
+      await navigator.share({ files: [f], title: "Sauvegarde plantes" });
+      etat.derniereSauvegarde = aujourdhui(); sauver();
+    } catch (e) { if (e.name !== "AbortError") toast("Partage impossible : " + e.message); }
   });
   on("import", "onchange", async () => {
     try {

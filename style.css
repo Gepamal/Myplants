@@ -145,3 +145,7 @@ nav a.actif { color: var(--vert); font-weight: 600; }
 .demi { flex: 1; }
 .erreur { color: var(--danger); }
 #etapes-ia { line-height: 1.7; font-weight: 400; }
+.ligne { align-items: stretch; }
+.ligne > button, .ligne > .bouton { margin: 0; display: flex; align-items: center; justify-content: center; }
+label.bouton { color: var(--bouton-texte); font-size: 1rem; margin: 0; }
+label.bouton.secondaire { color: var(--texte); }
