@@ -350,6 +350,7 @@ function vuePlante(id) {
 
 // ---------- ajout / modification ----------
 let brouillon = null;
+let fichierHD = null;
 
 function nouveauBrouillon(p) {
   if (p) return {
@@ -369,15 +370,24 @@ function vueAjout(id) {
   return `
     <a class="retour" href="${existant ? `#/plante/${existant.id}` : "#/plantes"}">‹ Retour</a>
     <h1>${existant ? "Modifier" : "Ajouter une plante"}</h1>
-    <label class="zone-photo">${b.photo ? `<img src="${b.photo}" alt="">` : `<span>📷<br>Prendre ou choisir une photo</span>`}
-      <input id="f-photo" type="file" accept="image/*" hidden></label>
+    ${b.photo ? `<img class="photo-plante" src="${b.photo}" alt="">` : ""}
+    <div class="ligne">
+      <label class="bouton secondaire demi">📷 Prendre une photo<input class="f-photo" type="file" accept="image/*" capture="environment" hidden></label>
+      <label class="bouton secondaire demi">🖼️ Galerie<input class="f-photo" type="file" accept="image/*" hidden></label>
+    </div>
     <h2>Identifier</h2>
     <div class="ligne">
       <button id="id-plantnet">🔍 Pl@ntNet</button>
       <button id="id-ia">🤖 Demander à une IA</button>
     </div>
     <div id="id-resultats"></div>
-    <details id="det-ia" ${b.ia ? "" : ""}><summary>Coller la réponse de l'IA</summary>
+    <div id="etapes-ia" class="alerte" hidden>
+      <b>1.</b> La question est copiée ✓<br>
+      <b>2.</b> Choisis ton IA, puis dans le champ de message : appui long → <b>Coller</b>, et envoie.<br>
+      <b>3.</b> Copie sa réponse (bouton copier du bloc de code) et reviens ici la coller ci-dessous.
+      <button id="ouvrir-partage" class="ok large">Choisir mon IA</button>
+    </div>
+    <details id="det-ia"><summary>Coller la réponse de l'IA</summary>
       <textarea id="f-json" rows="5" placeholder="Colle ici la réponse (le bloc JSON)"></textarea>
       <button id="appliquer-json">Remplir la fiche</button>
       ${b.ia ? `<p class="petit">✓ Fiche de l'IA appliquée : arrosage, tâches et conseils viendront de sa réponse.</p>` : ""}
@@ -461,7 +471,7 @@ function construirePlante(b, existant) {
 
 const PROMPT_IA = (b) => `Identifie la plante sur la photo et propose sa fiche d'entretien pour mon app de suivi.
 Contexte : ${b.lieu === "mobile" ? "intérieur l'hiver, extérieur l'été" : b.lieu === "exterieur" ? "extérieur toute l'année" : "intérieur toute l'année"}${b.emplacement ? `, ${b.emplacement}` : ""}, ${b.contenant === "pleine-terre" ? "en pleine terre" : "en pot"}${b.auto ? ", arrosage automatique" : ""}. Climat : France, hémisphère nord.
-Réponds avec un court commentaire si besoin, puis UNIQUEMENT ce bloc JSON :
+Réponds avec un court commentaire si besoin, puis ce JSON dans un bloc de code (pour que je puisse le copier d'un geste) :
 {
   "nom": "nom commun en français",
   "espece": "nom latin",
@@ -474,7 +484,8 @@ Réponds avec un court commentaire si besoin, puis UNIQUEMENT ce bloc JSON :
   "taches": [ { "label": "tâche", "mois": [numéros de mois 1-12], "tousLesJours": nombre (optionnel, si répété dans ces mois) } ],
   "fiche": ["conseil clé", "toxicité éventuelle"]
 }
-"jours" = intervalle indicatif entre deux vérifications de l'arrosage.`;
+"jours" = intervalle indicatif entre deux vérifications de l'arrosage.
+Si la photo ne suffit pas pour identifier, dis-le et pose-moi une question au lieu de deviner.`;
 
 function appliquerIA(texte) {
   const debut = texte.indexOf("{"), fin = texte.lastIndexOf("}");
@@ -505,6 +516,17 @@ function appliquerIA(texte) {
   for (const k of Object.keys(brouillon.ia)) if (brouillon.ia[k] == null) delete brouillon.ia[k];
 }
 
+async function appelPlantNet(url, options) {
+  let r;
+  try { r = await fetch(url, options); }
+  catch { throw new Error("Pl@ntNet a refusé l'accès depuis cette page. Dans les réglages de ta clé : \"Expose my API key\" coché et domaine autorisé écrit exactement https://gepamal.github.io (avec https://, sans / final)."); }
+  if (r.ok || r.status === 404) return r;
+  let detail = "";
+  try { detail = (await r.json()).message || ""; } catch {}
+  const raisons = { 400: "Requête refusée (photo ?)", 401: "Clé invalide", 403: "Clé refusée pour ce domaine", 429: "Quota du jour atteint" };
+  throw new Error(`${raisons[r.status] || "Erreur"} (code ${r.status})${detail ? ` : ${detail}` : ""}`);
+}
+
 async function identifierPlantNet() {
   lireForm();
   const res = $("id-resultats");
@@ -516,11 +538,10 @@ async function identifierPlantNet() {
   res.innerHTML = `<p class="petit">Identification en cours…</p>`;
   try {
     const fd = new FormData();
-    fd.append("images", await dataUrlVersBlob(brouillon.photo), "photo.jpg");
+    fd.append("images", fichierHD || await dataUrlVersBlob(brouillon.photo), "photo.jpg");
     fd.append("organs", "auto");
-    const r = await fetch(`https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(etat.plantnetKey)}&lang=fr&nb-results=3`, { method: "POST", body: fd });
-    if (r.status === 404) { res.innerHTML = `<p class="petit">Pl@ntNet ne reconnaît pas de plante sur cette photo. Essaie avec une feuille ou une fleur bien nette.</p>`; return; }
-    if (!r.ok) throw new Error(r.status);
+    const r = await appelPlantNet(`https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(etat.plantnetKey)}&lang=fr&nb-results=3`, { method: "POST", body: fd });
+    if (r.status === 404) { res.innerHTML = `<p class="petit">Pl@ntNet ne reconnaît pas de plante sur cette photo. Essaie avec une feuille ou une fleur bien nette, en gros plan.</p>`; return; }
     const j = await r.json();
     const props = (j.results || []).slice(0, 3);
     res.innerHTML = props.map((x, i) => {
@@ -538,27 +559,37 @@ async function identifierPlantNet() {
       toast(t ? `Type proposé : ${TYPES[t].label}` : "Choisis le type d'entretien");
     }));
   } catch (e) {
-    res.innerHTML = `<p class="petit">Échec de l'appel à Pl@ntNet. Vérifie ta clé et que <b>gepamal.github.io</b> est bien autorisé dans ton compte Pl@ntNet (option "Expose my API key").</p>`;
+    res.innerHTML = `<p class="petit erreur">${esc(e.message)}</p>`;
   }
 }
 
-async function demanderIA() {
+async function testerCle() {
+  const cle = $("cle-plantnet").value.trim();
+  etat.plantnetKey = cle; sauver();
+  const out = $("test-cle");
+  out.textContent = "Test en cours…";
+  try {
+    const r = await appelPlantNet(`https://my-api.plantnet.org/v2/quota/daily?api-key=${encodeURIComponent(cle)}`);
+    const j = await r.json();
+    const n = j?.identify?.count ?? j?.quota?.identify?.count;
+    out.textContent = `✓ Clé valide et domaine autorisé${n != null ? ` (${n} identification(s) aujourd'hui)` : ""}`;
+  } catch (e) { out.textContent = e.message; }
+}
+
+function demanderIA() {
   lireForm();
   const texte = PROMPT_IA(brouillon);
-  try { await navigator.clipboard.writeText(texte); } catch {}
+  // Copie immédiate, pendant le geste de l'utilisateur.
+  navigator.clipboard?.writeText(texte).catch(() => {});
+  $("etapes-ia").hidden = false;
   $("det-ia").open = true;
-  try {
-    if (brouillon.photo && navigator.canShare) {
-      const fichier = new File([await dataUrlVersBlob(brouillon.photo)], "plante.jpg", { type: "image/jpeg" });
-      if (navigator.canShare({ files: [fichier] })) {
-        await navigator.share({ files: [fichier], text: texte });
-        toast("Question copiée aussi : colle-la si l'app ne l'a pas reprise");
-        return;
-      }
-    }
-    if (navigator.share) { await navigator.share({ text: texte }); return; }
-  } catch { /* partage annulé */ }
-  toast("Question copiée : colle-la dans ton IA avec la photo");
+  $("ouvrir-partage").onclick = async () => {
+    try {
+      if (fichierHD && navigator.canShare?.({ files: [fichierHD] })) await navigator.share({ files: [fichierHD], text: texte });
+      else if (navigator.share) await navigator.share({ text: texte });
+      else toast("Ouvre ton IA, colle la question et joins la photo");
+    } catch { /* partage annulé */ }
+  };
 }
 
 function enregistrer() {
@@ -600,8 +631,9 @@ function vueReglages() {
     <button id="geo">Utiliser ma position</button>
     <p class="petit">Prévisions Open-Meteo pour les alertes gel et le bon moment pour sortir les plantes. La position reste dans ton téléphone.</p>
     <h2>Identification Pl@ntNet</h2>
-    <p class="petit">Crée une clé gratuite sur my.plantnet.org (500 identifications par jour). Dans les réglages de ta clé, coche "Expose my API key" et autorise le domaine <b>gepamal.github.io</b>.</p>
-    <div class="ligne"><input id="cle-plantnet" placeholder="Clé API Pl@ntNet" value="${esc(etat.plantnetKey)}"><button id="sauver-cle">OK</button></div>
+    <p class="petit">Crée une clé gratuite sur my.plantnet.org (500 identifications par jour). Dans les réglages de ta clé, coche "Expose my API key" et ajoute comme domaine autorisé, exactement : <b>https://gepamal.github.io</b></p>
+    <div class="ligne"><input id="cle-plantnet" placeholder="Clé API Pl@ntNet" value="${esc(etat.plantnetKey)}"><button id="sauver-cle">Tester</button></div>
+    <p id="test-cle" class="petit"></p>
     <h2>Rappel quotidien</h2>
     <p>Crée un événement répété chaque jour à 9 h dans Google Agenda, avec le lien vers l'app.</p>
     <a class="bouton" href="${lienAgenda()}" target="_blank" rel="noopener">Ajouter à Google Agenda</a>
@@ -669,13 +701,15 @@ function brancher() {
   });
 
   // ajout
-  on("f-photo", "onchange", async () => {
-    const f = $("f-photo").files[0];
+  document.querySelectorAll(".f-photo").forEach((inp) => (inp.onchange = async () => {
+    const f = inp.files[0];
     if (!f) return;
     lireForm();
     brouillon.photo = await compresser(f, 1024);
+    // Version haute définition, gardée en mémoire seulement, pour l'identification.
+    fichierHD = new File([await dataUrlVersBlob(await compresser(f, 2000))], "plante.jpg", { type: "image/jpeg" });
     rendre();
-  });
+  }));
   on("id-plantnet", "onclick", identifierPlantNet);
   on("id-ia", "onclick", demanderIA);
   on("appliquer-json", "onclick", () => {
@@ -690,7 +724,7 @@ function brancher() {
   document.querySelectorAll("button[data-reafficher]").forEach((b) => (b.onclick = () => {
     etat.masquees = etat.masquees.filter((x) => x !== b.dataset.reafficher); sauver(); rendre();
   }));
-  on("sauver-cle", "onclick", () => { etat.plantnetKey = $("cle-plantnet").value.trim(); sauver(); toast("Clé enregistrée"); });
+  on("sauver-cle", "onclick", testerCle);
   on("geo", "onclick", () => navigator.geolocation.getCurrentPosition(
     (pos) => { etat.lieu = { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2), nom: "Ma position" }; etat.meteo = null; sauver(); majMeteo(true); rendre(); },
     () => toast("Position refusée ou indisponible")));
@@ -732,7 +766,7 @@ function brancher() {
 }
 
 window.addEventListener("hashchange", () => {
-  if (!/^#\/(ajouter|modifier)/.test(location.hash)) brouillon = null;
+  if (!/^#\/(ajouter|modifier)/.test(location.hash)) { brouillon = null; fichierHD = null; }
   rendre(); scrollTo(0, 0);
 });
 document.addEventListener("visibilitychange", () => {

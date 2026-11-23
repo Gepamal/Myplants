@@ -142,3 +142,6 @@ nav a.actif { color: var(--vert); font-weight: 600; }
 }
 #toast[hidden] { display: none; }
 #toast button { padding: 4px 10px; background: transparent; color: var(--fond); border-color: var(--fond); }
+.demi { flex: 1; }
+.erreur { color: var(--danger); }
+#etapes-ia { line-height: 1.7; font-weight: 400; }
