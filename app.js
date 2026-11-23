@@ -155,6 +155,7 @@ const toutes = (auj) => lesPlantes().flatMap((p) => tachesDe(p, auj));
 
 // ---------- actions ----------
 let annulation = null;
+let dernierAgi = null;
 function agir(k, action) {
   annulation = JSON.stringify(etat);
   const auj = aujourdhui();
@@ -169,9 +170,19 @@ function agir(k, action) {
   } else if (action === "plustard") etat.snooze[k] = ajout(auj, 7);
   etat.log.unshift({ k, action, date: auj });
   etat.log = etat.log.slice(0, 500);
+  dernierAgi = { k, action, t: Date.now() };
   sauver();
   rendre();
-  toast({ fait: "C'est noté ✓", pasbesoin: "Revu dans 2 jours, rythme espacé", plustard: "Revu dans 7 jours" }[action], true);
+  const p = plante(pid);
+  const x = p && tachesDe(p, auj).find((t) => t.k === k);
+  const suite = x?.due ? ` Prochaine fois : ${joli(x.due)}` : "";
+  const label = x?.label || "Tâche";
+  toast({
+    fait: `✓ ${label} : fait.${suite}`,
+    pasbesoin: `Pas besoin noté, je repasse dans 2 jours et j'espace un peu ce rythme.`,
+    plustard: `Reporté.${suite}`,
+  }[action], true);
+  setTimeout(() => { if (dernierAgi?.k === k) { dernierAgi = null; if (!/^#\/(ajouter|modifier)/.test(location.hash)) rendre(); } }, 15000);
 }
 
 function toast(msg, avecAnnuler) {
@@ -249,22 +260,29 @@ const vignette = (p, cls = "") => etat.photos[p.id]
   ? `<img class="vignette ${cls}" src="${etat.photos[p.id]}" alt="">`
   : `<span class="emoji ${cls}">${p.emoji || "🌱"}</span>`;
 
-function ligneTache(x, auj, compacte) {
+// mode : "plein" (boutons), "compact" (liste à venir), "avenir" (fiche plante : info + action discrète)
+function ligneTache(x, auj, mode = "plein", sansNom = false) {
   const retard = ecart(x.due, auj);
+  const recent = dernierAgi && dernierAgi.k === x.k && Date.now() - dernierAgi.t < 15000;
   let quand;
-  if (x.limite) quand = `avant le ${joli(x.limite)}`;
+  if (recent && dernierAgi.action === "fait") quand = `✓ Fait aujourd'hui · prochaine fois : ${joli(x.due)}`;
+  else if (recent) quand = `✓ Reporté au ${joli(x.due)}`;
+  else if (x.limite) quand = `à faire avant le ${joli(x.limite)}`;
   else if (retard > 0 && !x.dernierFait) quand = "à faire";
   else if (retard > 0) quand = `en retard de ${retard} j`;
   else if (retard === 0) quand = "aujourd'hui";
-  else quand = joli(x.due);
+  else quand = `prochaine fois : ${joli(x.due)}${x.dernierFait ? ` · dernière fois : ${joli(x.dernierFait)}` : ""}`;
   const arrosage = x.type === "arrosage";
-  return `<li class="tache ${retard > 0 && !x.limite && x.dernierFait ? "retard" : ""}">
-    <div class="t-tete">${vignette(x.p)}
-      <div><a class="t-plante" href="#/plante/${x.p.id}">${esc(x.p.nom)}</a>
+  let actions = "";
+  if (mode === "plein") actions = `<div class="t-actions"><button class="ok" data-k="${x.k}" data-a="fait">Fait</button><button data-k="${x.k}" data-a="${arrosage ? "pasbesoin" : "plustard"}">${arrosage ? "Pas besoin" : "Plus tard"}</button></div>`;
+  else if (mode === "avenir" && !recent) actions = `<button class="lien" data-k="${x.k}" data-a="fait">Je l'ai fait aujourd'hui</button>`;
+  return `<li class="tache ${retard > 0 && !x.limite && x.dernierFait ? "retard" : ""} ${recent ? "flash" : ""} ${mode !== "plein" ? "discret" : ""}">
+    <div class="t-tete">${sansNom ? "" : vignette(x.p)}
+      <div>${sansNom ? "" : `<a class="t-plante" href="#/plante/${x.p.id}">${esc(x.p.nom)}</a>`}
       <div class="t-label">${esc(x.label)}</div>
-      ${x.consigne && !compacte ? `<div class="t-consigne">${esc(x.consigne)}</div>` : ""}
-      <div class="t-quand">${quand}</div></div></div>
-    ${compacte ? "" : `<div class="t-actions"><button class="ok" data-k="${x.k}" data-a="fait">Fait</button><button data-k="${x.k}" data-a="${arrosage ? "pasbesoin" : "plustard"}">${arrosage ? "Pas besoin" : "Plus tard"}</button></div>`}
+      ${x.consigne && mode === "plein" ? `<div class="t-consigne">${esc(x.consigne)}</div>` : ""}
+      <div class="t-quand ${recent ? "ok" : ""}">${quand}</div></div></div>
+    ${actions}
   </li>`;
 }
 
@@ -283,7 +301,7 @@ function vueJour() {
     <h2>À faire ${afaire.length ? `<span class="badge">${afaire.length}</span>` : ""}</h2>
     ${afaire.length ? `<ul class="liste">${afaire.map((x) => ligneTache(x, auj)).join("")}</ul>` : `<p class="vide">Rien à faire aujourd'hui 🌿</p>`}
     <h2>Dans les 14 jours</h2>
-    ${avenir.length ? `<ul class="liste">${avenir.map((x) => ligneTache(x, auj, true)).join("")}</ul>` : `<p class="vide">Rien de prévu.</p>`}`;
+    ${avenir.length ? `<ul class="liste">${avenir.map((x) => ligneTache(x, auj, "compact")).join("")}</ul>` : `<p class="vide">Rien de prévu.</p>`}`;
 }
 
 function vuePlantes() {
@@ -311,6 +329,9 @@ function vuePlante(id) {
   if (!p) return `<p>Plante inconnue.</p>`;
   const auj = aujourdhui();
   const ts = tachesDe(p, auj);
+  const recentK = dernierAgi && Date.now() - dernierAgi.t < 15000 ? dernierAgi.k : null;
+  const aFaire = ts.filter((x) => x.due && x.due <= auj && x.k !== recentK);
+  const prochaines = ts.filter((x) => !aFaire.includes(x)).sort((a, b) => (a.due || "").localeCompare(b.due || ""));
   const hist = etat.log.filter((l) => l.k.startsWith(p.id + ":")).slice(0, 15);
   const labelDe = (k) => {
     const t = k.split(":")[1];
@@ -333,8 +354,9 @@ function vuePlante(id) {
       <div class="ligne rythme"><span class="petit">Rythme ${r === 1 ? "de base" : r > 1 ? `espacé de ${Math.round((r - 1) * 100)} %` : `resserré de ${Math.round((1 - r) * 100)} %`}</span>
       <button data-rythme="0.85">Plus souvent</button><button data-rythme="1.15">Moins souvent</button>${r !== 1 ? `<button data-rythme="reset">Réinitialiser</button>` : ""}</div>` : ""}
     ${p.fiche?.length ? `<h2>À savoir</h2><ul class="puces">${p.fiche.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
-    <h2>Tâches</h2>
-    <ul class="liste">${ts.map((x) => (x.due ? ligneTache(x, auj) : `<li class="tache pause">${esc(x.label)}</li>`)).join("") || `<li class="vide">Aucune tâche.</li>`}</ul>
+    ${aFaire.length ? `<h2>À faire</h2><ul class="liste">${aFaire.map((x) => ligneTache(x, auj, "plein", true)).join("")}</ul>` : ""}
+    <h2>Prochaines tâches</h2>
+    <ul class="liste">${prochaines.map((x) => (x.due ? ligneTache(x, auj, "avenir", true) : `<li class="tache pause">${esc(x.label)}</li>`)).join("") || `<li class="vide">Aucune.</li>`}</ul>
     <h2>Mes notes</h2>
     <textarea id="notes" rows="4" placeholder="Observations, traitements, changement d'emplacement…">${esc(etat.notes[p.id] ?? p.notes ?? "")}</textarea>
     <h2>Historique</h2>

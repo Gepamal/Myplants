@@ -136,7 +136,8 @@ nav a span { display: block; font-size: .72rem; }
 nav a.actif { color: var(--vert); font-weight: 600; }
 
 #toast {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: 84px;
+  font-size: 1rem; max-width: calc(100% - 32px); line-height: 1.4;
+  position: fixed; left: 16px; right: 16px; margin: 0 auto; max-width: 560px; bottom: 84px; justify-content: space-between;
   background: var(--texte); color: var(--fond); border-radius: 12px; padding: 10px 14px;
   display: flex; gap: 12px; align-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.2);
 }
@@ -150,3 +151,8 @@ nav a.actif { color: var(--vert); font-weight: 600; }
 label.bouton { color: var(--bouton-texte); font-size: 1rem; margin: 0; }
 label.bouton.secondaire { color: var(--texte); }
 .choix.choisi { border-color: var(--bouton); border-width: 2px; background: var(--vert-clair); }
+.tache.discret { padding: 10px 12px; }
+.tache.flash { border: 2px solid var(--bouton); background: var(--vert-clair); animation: flash .6s ease; }
+@keyframes flash { from { transform: scale(.98); } to { transform: none; } }
+.t-quand.ok { color: var(--vert); font-weight: 600; font-size: .9rem; }
+button.lien { border: none; background: none; color: var(--vert); padding: 6px 0 0 0; font-size: .88rem; text-decoration: underline; }
