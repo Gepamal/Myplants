@@ -10,11 +10,16 @@ const etatDefaut = () => ({
 let etat = charger();
 
 function charger() {
-  try {
-    return Object.assign(etatDefaut(), JSON.parse(localStorage.getItem(CLE)) || {});
-  } catch {
-    return etatDefaut();
+  let e;
+  try { e = Object.assign(etatDefaut(), JSON.parse(localStorage.getItem(CLE)) || {}); }
+  catch { e = etatDefaut(); }
+  // Les plantes de data.js sont celles de Saad : un téléphone qui a déjà un historique les garde,
+  // un nouvel utilisateur démarre avec une liste vide.
+  if (!e.departs) {
+    const dejaUtilise = Object.keys(e.last).length || e.log.length || e.plantesPerso.length;
+    e.departs = dejaUtilise ? "inclus" : "aucun";
   }
+  return e;
 }
 function sauver() {
   try {
@@ -76,10 +81,10 @@ function finFenetre(mois, s) {
 
 // ---------- plantes ----------
 const lesPlantes = () => [
-  ...PLANTES.filter((p) => !etat.masquees.includes(p.id)),
+  ...(etat.departs === "inclus" ? PLANTES.filter((p) => !etat.masquees.includes(p.id)) : []),
   ...etat.plantesPerso,
 ];
-const plante = (id) => etat.plantesPerso.find((p) => p.id === id) || PLANTES.find((p) => p.id === id);
+const plante = (id) => etat.plantesPerso.find((p) => p.id === id) || (etat.departs === "inclus" ? PLANTES.find((p) => p.id === id) : null);
 
 // ---------- moteur de tâches ----------
 const cle = (p, t) => `${p.id}:${t}`;
@@ -298,6 +303,14 @@ function vueJour() {
     ${alertes.map((a) => `<div class="alerte">${esc(a)}</div>`).join("")}
     ${meteo.length ? `<div class="meteo">${meteo.map((j) => `<div><b>${JOURS[parse(j.d).getDay()]}</b><span class="${j.min < 0 ? "froid" : ""}">${Math.round(j.min)}°</span><span>${Math.round(j.max)}°</span>${j.pluie >= 1 ? `<i>💧${Math.round(j.pluie)}</i>` : ""}</div>`).join("")}</div>`
       : !etat.lieu ? `<a class="info" href="#/reglages">📍 Ajoute ta ville dans Réglages pour les alertes gel</a>` : ""}
+    ${lesPlantes().length ? "" : `<div class="bienvenue">
+      <h2>Bienvenue 🌱</h2>
+      <p>Cette app te rappelle quand vérifier l'arrosage, tailler, rempoter, sortir ou rentrer tes plantes, en tenant compte de la météo.</p>
+      <ol><li>Ajoute ta première plante : photo, identification, et la fiche se remplit.</li>
+      <li>Indique ta ville dans Réglages pour les alertes gel.</li>
+      <li>Installe l'app : menu du navigateur → "Ajouter à l'écran d'accueil".</li></ol>
+      <a class="bouton large" href="#/ajouter">＋ Ajouter ma première plante</a>
+      <p class="petit">Tes plantes et ton historique restent dans ton téléphone. Personne d'autre ne les voit.</p></div>`}
     <h2>À faire ${afaire.length ? `<span class="badge">${afaire.length}</span>` : ""}</h2>
     ${afaire.length ? `<ul class="liste">${afaire.map((x) => ligneTache(x, auj)).join("")}</ul>` : `<p class="vide">Rien à faire aujourd'hui 🌿</p>`}
     <h2>Dans les 14 jours</h2>
@@ -656,7 +669,7 @@ function lienAgenda() {
 }
 
 function vueReglages() {
-  const masquees = PLANTES.filter((p) => etat.masquees.includes(p.id));
+  const masquees = etat.departs === "inclus" ? PLANTES.filter((p) => etat.masquees.includes(p.id)) : [];
   const th = (v, l) => `<button data-theme="${v}" class="${etat.theme === v ? "ok" : ""}">${l}</button>`;
   return `<h1>Réglages</h1>
     <h2>Apparence</h2>
@@ -675,6 +688,9 @@ function vueReglages() {
     <p>Crée un événement répété chaque jour à 9 h dans Google Agenda, avec le lien vers l'app.</p>
     <a class="bouton" href="${lienAgenda()}" target="_blank" rel="noopener">Ajouter à Google Agenda</a>
     ${masquees.filter((p) => !etat.plantesPerso.some((x) => x.id === p.id)).length ? `<h2>Plantes de départ supprimées</h2>${masquees.filter((p) => !etat.plantesPerso.some((x) => x.id === p.id)).map((p) => `<button class="choix" data-reafficher="${p.id}">Restaurer : ${esc(p.nom)}</button>`).join("")}` : ""}
+    <h2>Plantes de départ</h2>
+    <p class="petit">La liste de plantes fournie avec l'app (citronnier, olivier, azalée…).</p>
+    <button id="departs">${etat.departs === "inclus" ? "Ne plus les afficher" : "Les afficher"}</button>
     <h2>Sauvegarde</h2>
     <p class="petit">Tout est stocké dans ce navigateur, photos comprises. Exporte régulièrement.</p>
     <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept=".json,.txt,application/json,text/plain" hidden></label></div>`;
@@ -764,6 +780,7 @@ function brancher() {
     etat.masquees = etat.masquees.filter((x) => x !== b.dataset.reafficher); sauver(); rendre();
   }));
   on("sauver-cle", "onclick", testerCle);
+  on("departs", "onclick", () => { etat.departs = etat.departs === "inclus" ? "aucun" : "inclus"; sauver(); rendre(); });
   on("geo", "onclick", () => navigator.geolocation.getCurrentPosition(
     (pos) => { etat.lieu = { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2), nom: "Ma position" }; etat.meteo = null; sauver(); majMeteo(true); rendre(); },
     () => toast("Position refusée ou indisponible")));

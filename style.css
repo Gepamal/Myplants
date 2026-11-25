@@ -156,3 +156,6 @@ label.bouton.secondaire { color: var(--texte); }
 @keyframes flash { from { transform: scale(.98); } to { transform: none; } }
 .t-quand.ok { color: var(--vert); font-weight: 600; font-size: .9rem; }
 button.lien { border: none; background: none; color: var(--vert); padding: 6px 0 0 0; font-size: .88rem; text-decoration: underline; }
+.bienvenue { background: var(--carte); border: 1px solid var(--bord); border-radius: 16px; padding: 4px 16px 12px; margin: 12px 0; }
+.bienvenue ol { padding-left: 20px; }
+.bienvenue li { margin-bottom: 6px; }
