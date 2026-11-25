@@ -304,6 +304,23 @@ async function partagerSauvegarde() {
 // ---------- rendu ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = (id) => document.getElementById(id);
+// Icône selon la tâche.
+function iconeTache(id, label) {
+  const t = `${id} ${label}`.toLowerCase();
+  const regles = [[/arros/, "💧"], [/engrais/, "🧪"], [/taill|pincer|rabattre/, "✂️"], [/rempot|surfa|diviser|rejets/, "🪴"],
+    [/sortir/, "☀️"], [/rentrer/, "🏠"], [/cochenille|inspect|vérifier le dessous|feuilles \(|dessous/, "🔍"], [/fan[ée]es|fleurs/, "🥀"],
+    [/tourner/, "🔄"], [/dépoussi|feuilles/, "🧽"], [/gel|protég|paill|voile/, "🧣"], [/goutte|purge|remise|arrosage auto/, "🔧"]];
+  return (regles.find(([re]) => re.test(t)) || [null, "📌"])[1];
+}
+
+// Statut d'une plante : "rouge" (en retard ou emplacement à revoir), "orange" (à faire aujourd'hui), "vert".
+function statut(p, auj) {
+  const ts = tachesDe(p, auj).filter((x) => x.due);
+  if (ts.some((x) => x.due < auj && x.dernierFait && !x.limite) || nbAlertes(p, auj)) return "rouge";
+  if (ts.some((x) => x.due <= auj)) return "orange";
+  return "vert";
+}
+
 const vignette = (p, cls = "") => etat.photos[p.id]
   ? `<img class="vignette ${cls}" src="${etat.photos[p.id]}" alt="">`
   : `<span class="emoji ${cls}">${p.emoji || "🌱"}</span>`;
@@ -325,7 +342,7 @@ function ligneTache(x, auj, mode = "plein", sansNom = false) {
   if (mode === "plein") actions = `<div class="t-actions"><button class="ok" data-k="${x.k}" data-a="fait">Fait</button><button data-k="${x.k}" data-a="${arrosage ? "pasbesoin" : "plustard"}">${arrosage ? "Pas besoin" : "Plus tard"}</button></div>`;
   else if (mode === "avenir" && !recent) actions = `<button class="lien" data-k="${x.k}" data-a="fait">Je l'ai fait aujourd'hui</button>`;
   return `<li class="tache ${retard > 0 && !x.limite && x.dernierFait ? "retard" : ""} ${recent ? "flash" : ""} ${mode !== "plein" ? "discret" : ""}">
-    <div class="t-tete">${sansNom ? "" : vignette(x.p)}
+    <div class="t-tete">${sansNom ? `<span class="ico-seule">${iconeTache(x.id, x.label)}</span>` : `<span class="vig-ico">${vignette(x.p)}<i>${iconeTache(x.id, x.label)}</i></span>`}
       <div>${sansNom ? "" : `<a class="t-plante" href="#/plante/${x.p.id}">${esc(x.p.nom)}</a>`}
       <div class="t-label">${esc(x.label)}</div>
       ${x.consigne && mode === "plein" ? `<div class="t-consigne">${esc(x.consigne)}</div>` : ""}
@@ -365,21 +382,37 @@ function vuePlantes() {
   const groupe = (titre, f) => {
     const ps = lesPlantes().filter(f);
     if (!ps.length) return "";
-    return `<h2>${titre}</h2><ul class="cartes">${ps.map((p) => {
-      const ts = tachesDe(p, auj).filter((x) => x.due).sort((a, b) => a.due.localeCompare(b.due));
-      const n = ts.filter((x) => x.due <= auj).length;
-      const prochaine = ts[0];
-      return `<li><a href="#/plante/${p.id}">${vignette(p, "gros")}
-        <div><b>${esc(p.nom)}</b><small>${esc(p.espece)}</small>
-        <small>${n ? `<span class="badge">${n}</span> à faire` : prochaine ? `Prochain : ${joli(prochaine.due)}` : ""}${nbAlertes(p, auj) ? ` · <span class="attention">⚠ emplacement</span>` : ""}</small></div></a></li>`;
-    }).join("")}</ul>`;
+    return `<h2>${titre}</h2><div class="mosaique">${ps.map((p) => {
+      const ts = tachesDe(p, auj).filter((x) => x.due && x.due <= auj);
+      const st = statut(p, auj);
+      const icones = [...new Set(ts.map((x) => iconeTache(x.id, x.label)))].slice(0, 3).join("");
+      return `<a class="tuile" href="#/plante/${p.id}">
+        ${etat.photos[p.id] ? `<img src="${etat.photos[p.id]}" alt="">` : `<span class="tuile-emoji">${p.emoji || "🌱"}</span>`}
+        <span class="pastille ${st}" title="${st === "vert" ? "Tout va bien" : st === "orange" ? "À faire aujourd'hui" : "En retard ou emplacement à revoir"}"></span>
+        ${icones ? `<span class="tuile-taches">${icones}</span>` : ""}
+        <span class="tuile-nom">${esc(p.nom)}</span>
+      </a>`;
+    }).join("")}</div>`;
   };
   return `<h1>Mes plantes</h1>
+    ${lesPlantes().length ? `<p class="legende"><span class="pastille vert"></span> ça va <span class="pastille orange"></span> à faire <span class="pastille rouge"></span> en retard ou mal placée</p>` : ""}
     ${boutonPhoto("📷 Photographier une plante")}
     <p class="petit centre"><a href="#/ajouter">Autres façons d'ajouter</a></p>
     ${groupe("Intérieur", (p) => position(p) === "dedans")}
     ${groupe("Extérieur", (p) => position(p) === "dehors")}
     ${lesPlantes().length ? `<a class="bouton large secondaire" href="#/bilan">🩺 Faire le bilan de mes plantes</a>` : ""}`;
+}
+
+function jaugeArrosage(p, auj) {
+  const x = tachesDe(p, auj).find((t) => t.type === "arrosage");
+  const base = p.arrosage?.jours?.[saison(auj)];
+  if (!x || !base) return "";
+  const intervalle = Math.max(1, Math.round(base * rythme(p)));
+  const reste = ecart(auj, x.due);
+  const part = Math.max(0, Math.min(1, reste / intervalle));
+  const coul = reste <= 0 ? "rouge" : part < 0.34 ? "orange" : "vert";
+  const txt = reste < 0 ? `vérification en retard de ${-reste} j` : reste === 0 ? "à vérifier aujourd'hui" : `prochaine vérification dans ${reste} j`;
+  return `<div class="jauge"><span>💧</span><div class="jauge-barre"><div class="jauge-niveau ${coul}" style="width:${Math.round(part * 100)}%"></div></div></div><p class="petit">${txt}</p>`;
 }
 
 function vuePlante(id) {
@@ -408,7 +441,7 @@ function vuePlante(id) {
     <dl><dt>Où</dt><dd>${esc(p.emplacement)} · <b>${nomPosition(p)}</b></dd>
     ${p.contenant ? `<dt>Contenant</dt><dd>${esc(p.contenant)}</dd>` : ""}</dl>
     ${blocEmplacement(p, auj)}
-    ${a?.consigne ? `<h2>Arrosage</h2><p>${esc(a.consigne)}</p>` : ""}
+    ${a?.consigne ? `<h2>Arrosage</h2>${jaugeArrosage(p, auj)}<p>${esc(a.consigne)}</p>` : ""}
     ${aDesJours ? `<p class="petit">Vérification : hiver ${fmt(a.jours.hiver)} · printemps ${fmt(a.jours.printemps)} · été ${fmt(a.jours.ete)} · automne ${fmt(a.jours.automne)}</p>
       <div class="ligne rythme"><span class="petit">Rythme ${r === 1 ? "de base" : r > 1 ? `espacé de ${Math.round((r - 1) * 100)} %` : `resserré de ${Math.round((1 - r) * 100)} %`}</span>
       <button data-rythme="0.85">Plus souvent</button><button data-rythme="1.15">Moins souvent</button>${r !== 1 ? `<button data-rythme="reset">Réinitialiser</button>` : ""}</div>` : ""}

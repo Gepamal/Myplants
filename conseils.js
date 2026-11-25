@@ -176,6 +176,11 @@ function brancherBilan() {
 }
 
 // ---------- présentation au premier démarrage ----------
+// Feuille d'acacia dorée (feuille composée pennée).
+const ACACIA = `<svg class="acacia" viewBox="0 0 64 24" aria-hidden="true"><defs><linearGradient id="or" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d77a"/><stop offset=".5" stop-color="#d4a62a"/><stop offset="1" stop-color="#a87b12"/></linearGradient></defs>
+  <path d="M2 13 Q32 11 62 12" stroke="#b8891c" stroke-width="1.2" fill="none"/>
+  ${[8, 15, 22, 29, 36, 43, 50].map((x) => `<ellipse cx="${x + 2}" cy="${7.5}" rx="3.2" ry="5" transform="rotate(-28 ${x + 2} 7.5)" fill="url(#or)"/><ellipse cx="${x + 2}" cy="${17}" rx="3.2" ry="5" transform="rotate(28 ${x + 2} 17)" fill="url(#or)"/>`).join("")}
+  <ellipse cx="59" cy="12" rx="4" ry="2.6" fill="url(#or)"/></svg>`;
 function splash() {
   const f = (i, t, d) => `<div class="sf"><span>${i}</span><b>${t}</b><small>${d}</small></div>`;
   return `<div id="splash"><div class="splash-in">
@@ -186,14 +191,14 @@ function splash() {
       <p class="splash-intro">Pas de compte, pas de pub, pas d'abonnement.</p>
     </div>
     <div class="splash-grille">
-      ${f("📷", "Photo, et c'est rempli", "Pl@ntNet la reconnaît, t'as plus qu'à valider")}
-      ${f("💧", "Des rappels qui apprennent", "Chaque \"pas besoin\" espace le rythme")}
-      ${f("🌡️", "La météo veille", "Alerte gel, feu vert pour sortir les pots")}
-      ${f("🪟", "Le bon endroit ?", "Fenêtre, distance, radiateur : verdict direct")}
+      ${f("📷", "Prends une photo et c'est rempli", "Pl@ntNet la reconnaît, t'as plus qu'à valider")}
+      ${f("💧", "Des rappels qui apprennent", "Ils s'ajustent à ta façon d'arroser")}
+      ${f("🌡️", "La météo veille", "Myplants t'alerte si la météo change")}
+      ${f("🪟", "Place-les au bon endroit", "Fenêtre, distance, radiateur : verdict instantané")}
       ${f("🩺", "Un bilan à la demande", "Par une IA européenne, quand tu veux")}
       ${f("🔒", "Tes données chez toi", "Tout reste dans ton téléphone")}
     </div>
     <p class="splash-libre"><b>Ouvert, gratuit, souverain :</b> Pl@ntNet (recherche publique française, <a href="https://donorbox.org/plantnet-donation-fr" target="_blank" rel="noopener">à soutenir</a>), Open-Meteo, Euria (Suisse) et Mistral (Paris). Code public sur <a href="https://github.com/Gepamal/Myplants" target="_blank" rel="noopener">GitHub</a>.</p>
-    <button class="ok large" id="splash-ok">C'est parti <span class="sign">· Saad 🌿</span></button>
+    <button class="ok large" id="splash-ok">C'est parti <span class="sign">· Saad ${ACACIA}</span></button>
   </div></div>`;
 }
