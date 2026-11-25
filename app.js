@@ -801,6 +801,7 @@ function vueReglages() {
   const masquees = etat.departs === "inclus" ? PLANTES.filter((p) => etat.masquees.includes(p.id)) : [];
   const th = (v, l) => `<button data-theme="${v}" class="${etat.theme === v ? "ok" : ""}">${l}</button>`;
   return `<h1>Réglages</h1>
+    <a class="bouton large secondaire" href="#/aide">❓ Aide et suggestions</a>
     <h2>Apparence</h2>
     <div class="ligne">${th("clair", "Clair")}${th("sombre", "Sombre")}${th("auto", "Auto")}</div>
     <h2>Météo</h2>
@@ -851,11 +852,12 @@ function rendre() {
   else if (h === "#/plantes") html = vuePlantes();
   else if (h === "#/reglages") html = vueReglages();
   else if (h === "#/bilan") html = vueBilan();
+  else if (h === "#/aide") html = vueAide();
   else if (h === "#/ajouter") html = vueAjout(null);
   else if (h.startsWith("#/modifier/")) html = vueAjout(decodeURIComponent(h.slice(11)));
   else html = vueJour();
   $("app").innerHTML = html + (etat.splashVu ? "" : splash());
-  const onglet = /^#\/(plante\/|plantes|ajouter|modifier|bilan)/.test(h) ? "#/plantes" : h === "#" ? "#/" : h;
+  const onglet = h === "#/aide" ? "#/reglages" : /^#\/(plante\/|plantes|ajouter|modifier|bilan)/.test(h) ? "#/plantes" : h === "#" ? "#/" : h;
   document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("actif", a.getAttribute("href") === onglet));
   brancher();
 }
@@ -869,6 +871,7 @@ function brancher() {
   on("notes", "oninput", () => { etat.notes[pid] = $("notes").value; sauver(); });
   if (pid) brancherEmplacement(pid);
   if (location.hash === "#/bilan") brancherBilan();
+  if (location.hash === "#/aide") brancherAide();
   document.querySelectorAll("button[data-rythme]").forEach((b) => (b.onclick = () => {
     const v = b.dataset.rythme;
     etat.rythme[pid] = v === "reset" ? 1 : Math.min(3, Math.max(0.4, +((etat.rythme[pid] || 1) * +v).toFixed(2)));

@@ -216,3 +216,6 @@ pre.prompt { white-space: pre-wrap; font-size: .8rem; background: var(--carte); 
 .jauge-barre { flex: 1; height: 12px; background: var(--vert-clair); border-radius: 6px; overflow: hidden; border: 1px solid var(--bord); }
 .jauge-niveau { height: 100%; border-radius: 6px; }
 .jauge-niveau.vert { background: #3c9a5f; } .jauge-niveau.orange { background: #e39b2d; } .jauge-niveau.rouge { background: #d0463a; }
+.faq details { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.faq summary { color: var(--texte); font-weight: 600; margin: 0; }
+.faq p { margin: 8px 0 2px; color: var(--doux); line-height: 1.45; }

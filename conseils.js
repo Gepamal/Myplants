@@ -202,3 +202,46 @@ function splash() {
     <button class="ok large" id="splash-ok">C'est parti <span class="sign">· Saad 🌿</span></button>
   </div></div>`;
 }
+
+// ---------- aide et suggestions ----------
+const FAQ = [
+  ["Où sont stockées mes données ?", "Uniquement dans ton téléphone, dans le navigateur. Personne d'autre n'y a accès, pas même Saad. Pense à faire une sauvegarde de temps en temps (Réglages → Envoyer vers mon cloud)."],
+  ["Je change de téléphone, je perds tout ?", "Non, si tu as une sauvegarde : Réglages → Envoyer vers mon cloud sur l'ancien, puis Réglages → Importer sur le nouveau."],
+  ["Ma plante n'est pas reconnue", "Prends une seule plante, en gros plan, sur une fleur ou une feuille bien nette et bien éclairée. Sinon, choisis une autre proposition, demande à une IA, prends une plante de la liste courante ou remplis la fiche à la main."],
+  ["Pourquoi \"vérifier l'arrosage\" et pas \"arroser\" ?", "Parce que le bon moment dépend de la terre, pas du calendrier. Touche la terre : si elle est encore humide, appuie sur \"Pas besoin\", l'app espacera un peu les prochaines vérifications."],
+  ["Les rappels tombent trop souvent (ou pas assez)", "Chaque \"Pas besoin\" espace le rythme de cette plante. Tu peux aussi l'ajuster sur sa fiche avec \"Plus souvent\" ou \"Moins souvent\"."],
+  ["Je ne reçois pas de notification", "L'app n'envoie pas de notifications : ouvre-la chaque matin. Pour un rappel automatique, Réglages → Ajouter à Google Agenda crée un rendez-vous quotidien."],
+  ["Comment marchent les alertes gel ?", "Indique ta ville dans Réglages. L'app lit les prévisions d'Open-Meteo et te prévient quand une plante dehors risque le gel, ou quand il fait assez doux pour sortir les pots au printemps."],
+  ["Comment l'installer sur mon téléphone ?", "Android : menu du navigateur (⋮) → \"Ajouter à l'écran d'accueil\" ou \"Installer l'application\". iPhone : ouvre le lien avec Safari, bouton Partager → \"Sur l'écran d'accueil\"."],
+  ["Le bilan IA envoie mes données quelque part ?", "Non, rien ne part tout seul. L'app prépare un texte que tu peux relire, et c'est toi qui le colles dans l'IA de ton choix (Euria, Mistral ou une autre)."],
+  ["Comment supprimer ou modifier une plante ?", "Ouvre sa fiche, puis en bas : Gérer → Modifier ou Supprimer."],
+  ["Comment avoir la dernière version ?", "C'est automatique. Si une nouveauté n'apparaît pas, ferme complètement l'app et rouvre-la."],
+  ["C'est vraiment gratuit ?", "Oui, sans pub ni abonnement. L'identification utilise Pl@ntNet, un projet de recherche publique qui vit des dons : si l'app te sert, tu peux le soutenir."],
+];
+
+function vueAide() {
+  return `<a class="retour" href="#/reglages">‹ Réglages</a>
+    <h1>Aide et suggestions</h1>
+    <h2>Questions fréquentes</h2>
+    <div class="faq">${FAQ.map(([q, r]) => `<details><summary>${esc(q)}</summary><p>${esc(r)}</p></details>`).join("")}</div>
+    <h2>Une idée, un bug ?</h2>
+    <p>Dis-le à Saad : chaque retour aide à améliorer Myplants.</p>
+    <label>Ton message<textarea id="suggestion" rows="5" placeholder="Ce qui te plaît, ce qui coince, ce qui manque…"></textarea></label>
+    <button class="ok large" id="envoyer-suggestion">Envoyer (WhatsApp, SMS, mail…)</button>
+    <p class="petit">Le message part par l'app que tu choisis. Rien n'est envoyé automatiquement.</p>`;
+}
+
+function brancherAide() {
+  const b = $("envoyer-suggestion");
+  if (!b) return;
+  b.onclick = async () => {
+    const msg = $("suggestion").value.trim();
+    if (!msg) { toast("Écris d'abord ton message"); return; }
+    const texte = `Myplants, une suggestion : ${msg}`;
+    try {
+      if (navigator.share) { await navigator.share({ text: texte }); return; }
+    } catch (e) { if (e.name === "AbortError") return; }
+    navigator.clipboard?.writeText(texte).catch(() => {});
+    toast("Message copié : colle-le dans un message à Saad");
+  };
+}
