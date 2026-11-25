@@ -179,10 +179,12 @@ function brancherBilan() {
 function splash() {
   const f = (i, t, d) => `<div class="sf"><span>${i}</span><b>${t}</b><small>${d}</small></div>`;
   return `<div id="splash"><div class="splash-in">
-    <div class="splash-logo">🌱</div>
-    <h1>Mes plantes</h1>
-    <p class="splash-devise">Je les soigne, elles m'embellissent la vie.</p>
-    <p class="splash-intro">Pas de compte, pas de pub, pas d'abonnement.</p>
+    <div class="splash-haut">
+      <div class="splash-logo">🌱</div>
+      <h1>Myplants</h1>
+      <p class="splash-devise">Je les soigne, elles m'embellissent la vie.</p>
+      <p class="splash-intro">Pas de compte, pas de pub, pas d'abonnement.</p>
+    </div>
     <div class="splash-grille">
       ${f("📷", "Photo, et c'est rempli", "Pl@ntNet la reconnaît, t'as plus qu'à valider")}
       ${f("💧", "Des rappels qui apprennent", "Chaque \"pas besoin\" espace le rythme")}

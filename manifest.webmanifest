@@ -1,6 +1,6 @@
 {
-  "name": "Plantes",
-  "short_name": "Plantes",
+  "name": "Myplants",
+  "short_name": "Myplants",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
