@@ -953,19 +953,31 @@ function brancher() {
   });
   on("partager", "onclick", partagerSauvegarde);
   on("import", "onchange", async () => {
+    const fichier = $("import").files[0];
+    if (!fichier) return;
+    let brut = "", data;
     try {
-      const brut = (await $("import").files[0].text()).replace(/^\uFEFF/, "").trim();
-      let data;
-      try { data = JSON.parse(brut.slice(brut.indexOf("{"), brut.lastIndexOf("}") + 1)); }
-      catch { toast("Ce fichier n'est pas une sauvegarde Myplants lisible"); return; }
-      // Paquet de photos seul : on l'ajoute sans toucher au reste.
-      if (data.format === "myplants-photos" && data.photos) {
-        Object.assign(etat.photos, data.photos); sauver();
-        toast(`${Object.keys(data.photos).length} photos ajoutées 🌿`); rendre(); return;
-      }
-      if (!data.last || !data.log) throw new Error();
-      etat = Object.assign(etatDefaut(), data); sauver(); toast("Import réussi"); rendre();
-    } catch { toast("Fichier non reconnu : ce n'est ni une sauvegarde ni un paquet de photos Myplants"); }
+      brut = (await fichier.text()).replace(/^\uFEFF/, "").trim();
+      data = JSON.parse(brut.slice(brut.indexOf("{"), brut.lastIndexOf("}") + 1));
+    } catch {
+      toast(`Lecture impossible de "${fichier.name}" (${Math.round(fichier.size / 1024)} Ko, début : ${brut.slice(0, 40) || "vide"})`);
+      return;
+    }
+    // Le paquet peut arriver enveloppé dans un autre objet : on le cherche.
+    const trouver = (o, n = 0) => !o || typeof o !== "object" || n > 3 ? null
+      : o.photos && typeof o.photos === "object" ? o : Object.values(o).map((v) => trouver(v, n + 1)).find(Boolean) || null;
+    if (data.last && data.log) {
+      etat = Object.assign(etatDefaut(), data); sauver(); toast("Import réussi"); rendre(); return;
+    }
+    const paquet = trouver(data);
+    if (paquet) {
+      Object.assign(etat.photos, paquet.photos);
+      if (!sauver()) return;
+      toast(`${Object.keys(paquet.photos).length} photos ajoutées 🌿`);
+      try { rendre(); } catch {}
+      return;
+    }
+    toast(`Fichier non reconnu : "${fichier.name}", ${Math.round(fichier.size / 1024)} Ko, contenu : ${Object.keys(data).slice(0, 5).join(", ") || "vide"}`);
   });
 }
 
