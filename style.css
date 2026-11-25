@@ -160,3 +160,11 @@ button.lien { border: none; background: none; color: var(--vert); padding: 6px 0
 .bienvenue ol { padding-left: 20px; }
 .bienvenue li { margin-bottom: 6px; }
 .biblio { display: flex; flex-direction: column; }
+.vedette { font-size: 1.1rem; padding: 16px; margin: 12px 0 4px; }
+.centre { text-align: center; }
+.validation { border: 2px solid var(--bouton); background: var(--vert-clair); border-radius: 16px; padding: 12px 14px; margin: 10px 0; }
+.validation.doute { border-color: var(--retard); }
+.v-titre { font-size: 1.15rem; margin-bottom: 4px; }
+.validation p { margin: 8px 0; }
+.lieux button { flex: 1; padding: 8px 4px; font-size: .9rem; }
+.lieux button.choisi { border: 2px solid var(--bouton); font-weight: 600; }

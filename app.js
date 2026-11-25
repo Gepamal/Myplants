@@ -348,10 +348,10 @@ function vueJour() {
       : !etat.lieu ? `<a class="info" href="#/reglages">📍 Ajoute ta ville dans Réglages pour les alertes gel</a>` : ""}
     ${lesPlantes().length ? "" : `<div class="bienvenue">
       <h2>Bienvenue 🌱</h2>
-      <p>Cette app te rappelle quand vérifier l'arrosage, tailler, rempoter, sortir ou rentrer tes plantes, en tenant compte de la météo.</p>
-      <ol><li>Ajoute tes plantes : photo, identification, et la fiche se remplit.</li>
-      <li>Indique ta ville dans Réglages pour les alertes gel.</li></ol>
-      <a class="bouton large" href="#/ajouter">＋ Ajouter ma première plante</a>
+      <p><b>Photographie une plante : Pl@ntNet la reconnaît et sa fiche d'entretien se remplit toute seule.</b> Tu n'as plus qu'à valider.</p>
+      ${boutonPhoto("📷 Photographier ma première plante")}
+      <p class="petit">Ensuite, l'app te rappelle quand vérifier l'arrosage, tailler, rempoter, sortir ou rentrer tes plantes, en tenant compte de la météo de ta ville (à indiquer dans Réglages).</p>
+      <p class="petit"><a href="#/ajouter">Autres façons d'ajouter (galerie, liste de plantes courantes, saisie)</a></p>
       <p class="petit">Tes plantes et ton historique restent dans ton téléphone. Personne d'autre ne les voit.</p></div>`}
     ${carteInstall() || carteSauvegarde(auj)}
     <h2>À faire ${afaire.length ? `<span class="badge">${afaire.length}</span>` : ""}</h2>
@@ -375,7 +375,8 @@ function vuePlantes() {
     }).join("")}</ul>`;
   };
   return `<h1>Mes plantes</h1>
-    <a class="bouton large" href="#/ajouter">＋ Ajouter une plante</a>
+    ${boutonPhoto("📷 Photographier une plante")}
+    <p class="petit centre"><a href="#/ajouter">Autres façons d'ajouter</a></p>
     ${groupe("Intérieur", (p) => position(p) === "dedans")}
     ${groupe("Extérieur", (p) => position(p) === "dehors")}`;
 }
@@ -426,6 +427,22 @@ function vuePlante(id) {
 }
 
 // ---------- ajout / modification ----------
+// Le parcours vedette : un bouton qui ouvre directement l'appareil photo,
+// puis identification automatique et fiche préremplie.
+const boutonPhoto = (texte) => `<label class="bouton large vedette">${texte}<input class="photo-rapide" type="file" accept="image/*" capture="environment" hidden></label>`;
+
+async function prendrePhoto(f, depuisRapide) {
+  if (depuisRapide || !brouillon) brouillon = nouveauBrouillon(null);
+  else lireForm();
+  brouillon.photo = await compresser(f, 1024);
+  brouillon.propositions = null; brouillon.choix = null;
+  // Version haute définition, gardée en mémoire seulement, pour l'identification.
+  fichierHD = new File([await dataUrlVersBlob(await compresser(f, 2000))], "plante.jpg", { type: "image/jpeg" });
+  if (location.hash !== "#/ajouter" && depuisRapide) { garderBrouillon = true; location.hash = "#/ajouter"; }
+  rendre();
+  if (etat.plantnetKey || window.CLE_PLANTNET_PARTAGEE) identifierPlantNet();
+}
+let garderBrouillon = false;
 let brouillon = null;
 let fichierHD = null;
 
@@ -444,7 +461,7 @@ const optionsType = (v) => Object.entries(TYPES).map(([k, t]) => `<option value=
 
 function vueAjout(id) {
   const existant = id ? plante(id) : null;
-  if (!brouillon || brouillon.id !== (existant?.id)) brouillon = nouveauBrouillon(existant);
+  if (!brouillon || brouillon.id !== existant?.id) brouillon = nouveauBrouillon(existant);
   const b = brouillon;
   return `
     <a class="retour" href="${existant ? `#/plante/${existant.id}` : "#/plantes"}">‹ Retour</a>
@@ -507,6 +524,7 @@ function deviner(espece) {
 }
 
 function lireForm() {
+  if (!$("f-nom")) return;
   const v = (i) => $(i)?.value?.trim() ?? "";
   // Si l'utilisateur a retouché un nom proposé, on ne l'écrase plus.
   if (brouillon.nomAuto && v("f-nom") !== brouillon.nom) brouillon.nomAuto = false;
@@ -642,7 +660,16 @@ const MERCI_PLANTNET = `<p class="petit">Identification par <a href="https://pla
 
 function rendrePropositions(b) {
   if (!b.propositions?.length) return "";
-  return b.propositions.map((x, i) => `<button class="choix ${i === b.choix ? "choisi" : ""}" data-prop="${i}">
+  const x = b.propositions[b.choix ?? 0];
+  const sur = x.score >= 0.3;
+  const validation = `<div class="validation ${sur ? "" : "doute"}">
+      <div class="v-titre">${sur ? "✓ Reconnue" : "🤔 Pas sûr"} : <b>${esc(x.commun || x.latin)}</b> <span class="petit">${Math.round(x.score * 100)} %</span></div>
+      <div class="petit"><i>${esc(x.latin)}</i> · ${esc(TYPES[b.type]?.label || "")}</div>
+      <p class="petit">${sur ? "La fiche d'entretien est prête. Où vit-elle ?" : "Choisis une autre proposition ci-dessous, ou reprends une photo plus nette (une fleur ou une feuille en gros plan)."}</p>
+      ${sur ? `<div class="ligne lieux">${[["interieur", "🏠 Intérieur"], ["exterieur", "🌳 Extérieur"], ["mobile", "🔄 Les deux"]].map(([v, l]) => `<button data-lieu="${v}" class="${b.lieu === v ? "choisi" : ""}">${l}</button>`).join("")}</div>` : ""}
+      <div class="ligne"><button class="ok" id="valider-vite">Valider</button><button id="aller-fiche">Ajuster la fiche ↓</button></div>
+    </div>`;
+  return validation + `<p class="petit">Propositions de Pl@ntNet :</p>` + b.propositions.map((x, i) => `<button class="choix ${i === b.choix ? "choisi" : ""}" data-prop="${i}">
       ${i === b.choix ? "✓ " : ""}<b>${esc(x.latin)}</b>${x.commun ? ` · ${esc(x.commun)}` : ""} <span class="petit">${Math.round(x.score * 100)} %</span></button>`).join("")
     + `<p class="petit">La proposition la plus probable est appliquée. Touche une autre pour la choisir.</p>${MERCI_PLANTNET}`;
 }
@@ -676,7 +703,7 @@ function choisirProposition(i) {
   const t = deviner(x.latin);
   if (t) brouillon.type = t;
   rendre();
-  toast(t ? `Type proposé : ${TYPES[t].label}` : "Vérifie le type d'entretien");
+  document.querySelector(".validation")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function testerCle() {
@@ -824,15 +851,8 @@ function brancher() {
   });
 
   // ajout
-  document.querySelectorAll(".f-photo").forEach((inp) => (inp.onchange = async () => {
-    const f = inp.files[0];
-    if (!f) return;
-    lireForm();
-    brouillon.photo = await compresser(f, 1024);
-    // Version haute définition, gardée en mémoire seulement, pour l'identification.
-    fichierHD = new File([await dataUrlVersBlob(await compresser(f, 2000))], "plante.jpg", { type: "image/jpeg" });
-    rendre();
-  }));
+  document.querySelectorAll(".f-photo").forEach((inp) => (inp.onchange = () => inp.files[0] && prendrePhoto(inp.files[0], false)));
+  document.querySelectorAll(".photo-rapide").forEach((inp) => (inp.onchange = () => inp.files[0] && prendrePhoto(inp.files[0], true)));
   on("id-plantnet", "onclick", identifierPlantNet);
   document.querySelectorAll("button[data-biblio]").forEach((bt) => (bt.onclick = () => depuisBiblio(bt.dataset.biblio)));
   document.querySelectorAll("button[data-prop]").forEach((bt) => (bt.onclick = () => choisirProposition(+bt.dataset.prop)));
@@ -843,6 +863,13 @@ function brancher() {
   });
   on("f-type", "onchange", () => { lireForm(); });
   on("enregistrer", "onclick", enregistrer);
+  on("valider-vite", "onclick", enregistrer);
+  document.querySelectorAll("button[data-lieu]").forEach((bt) => (bt.onclick = () => {
+    lireForm(); brouillon.lieu = bt.dataset.lieu;
+    if (brouillon.lieu !== "interieur" && brouillon.type === "plante-verte") brouillon.type = "pot-exterieur";
+    rendre(); document.querySelector(".validation")?.scrollIntoView({ block: "start" });
+  }));
+  on("aller-fiche", "onclick", () => $("f-lieu")?.scrollIntoView({ behavior: "smooth", block: "center" }));
   on("installer", "onclick", async () => { promptInstall.prompt(); await promptInstall.userChoice; promptInstall = null; rendre(); });
   on("install-ok", "onclick", () => { etat.installMasque = true; sauver(); rendre(); });
   on("sauver-maintenant", "onclick", partagerSauvegarde);
@@ -890,7 +917,8 @@ function brancher() {
 }
 
 window.addEventListener("hashchange", () => {
-  if (!/^#\/(ajouter|modifier)/.test(location.hash)) { brouillon = null; fichierHD = null; }
+  if (garderBrouillon) garderBrouillon = false;
+  else if (!/^#\/(ajouter|modifier)/.test(location.hash)) { brouillon = null; fichierHD = null; }
   rendre(); scrollTo(0, 0);
 });
 document.addEventListener("visibilitychange", () => {
