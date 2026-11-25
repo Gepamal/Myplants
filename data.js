@@ -14,7 +14,7 @@
 
 // Clé Pl@ntNet partagée par défaut (n'accepte que les appels venant de https://gepamal.github.io).
 // Chaque utilisateur peut la remplacer par la sienne dans Réglages.
-window.CLE_PLANTNET_PARTAGEE = "";
+window.CLE_PLANTNET_PARTAGEE = "2b10CwcaUqJvVLFEECMqKz10aO";
 
 // Plantes proposées dans "Choisir une plante courante" (fiches nettoyées de l'historique de Saad).
 window.BIBLIO = ["pilea", "aeonium", "oxalis", "anthurium", "euphorbe", "bruyere", "azalee", "avocatier", "citronnier", "olivier"];
