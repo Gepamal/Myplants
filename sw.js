@@ -1,6 +1,6 @@
 // Cache de l'app pour un fonctionnement hors ligne.
 // Incrémente VERSION à chaque modification des fichiers pour forcer la mise à jour.
-const VERSION = "plantes-v24";
+const VERSION = "plantes-v25";
 const FICHIERS = ["./", "index.html", "style.css?v=24", "data.js?v=24", "conseils.js?v=24", "app.js?v=24", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -14,7 +14,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    // Les pages HTML sont toujours revalidées, pour que les mises à jour arrivent tout de suite.
+    fetch(e.request.mode === "navigate" ? new Request(e.request, { cache: "no-cache" }) : e.request)
       .then((r) => { const copie = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copie)); return r; })
       .catch(() => caches.match(e.request).then((r) => r || caches.match("index.html")))
   );
