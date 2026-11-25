@@ -159,3 +159,4 @@ button.lien { border: none; background: none; color: var(--vert); padding: 6px 0
 .bienvenue { background: var(--carte); border: 1px solid var(--bord); border-radius: 16px; padding: 4px 16px 12px; margin: 12px 0; }
 .bienvenue ol { padding-left: 20px; }
 .bienvenue li { margin-bottom: 6px; }
+.biblio { display: flex; flex-direction: column; }

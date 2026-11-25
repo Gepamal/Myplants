@@ -258,6 +258,49 @@ function compresser(file, max) {
 }
 const dataUrlVersBlob = async (u) => (await fetch(u)).blob();
 
+// ---------- installation et rappel de sauvegarde ----------
+let promptInstall = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); promptInstall = e; if (location.hash === "" || location.hash === "#/") rendre(); });
+const estInstallee = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const estIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+function carteInstall() {
+  if (!lesPlantes().length || estInstallee() || etat.installMasque) return "";
+  const comment = estIOS()
+    ? `Dans Safari : bouton <b>Partager</b> (carré avec flèche) → <b>"Sur l'écran d'accueil"</b>.`
+    : promptInstall ? "" : `Menu du navigateur (⋮) → <b>"Ajouter à l'écran d'accueil"</b> ou <b>"Installer l'application"</b>.`;
+  return `<div class="bienvenue"><h2>📲 Installe l'app</h2>
+    <p>Elle s'ouvrira comme une vraie app, depuis ton écran d'accueil.${estIOS() ? " Sur iPhone, c'est aussi ce qui protège le mieux tes données." : ""}</p>
+    ${comment ? `<p>${comment}</p>` : ""}
+    <div class="ligne">${promptInstall ? `<button class="ok" id="installer">Installer</button>` : ""}<button id="install-ok">${promptInstall ? "Plus tard" : "C'est fait"}</button></div></div>`;
+}
+
+function carteSauvegarde(auj) {
+  if (!etat.plantesPerso.length && etat.departs !== "inclus") return "";
+  const derniere = etat.derniereSauvegarde;
+  if (derniere && ecart(derniere, auj) < 30) return "";
+  if (etat.sauvegardeReportee && auj < etat.sauvegardeReportee) return "";
+  return `<div class="bienvenue"><h2>💾 Sauvegarde tes plantes</h2>
+    <p>Tout est stocké dans ce téléphone. Envoie une copie vers ton cloud (Drive, kDrive, iCloud…) ${derniere ? `: la dernière date du ${joli(derniere)}.` : "pour ne rien perdre si tu changes de téléphone."}</p>
+    <div class="ligne"><button class="ok" id="sauver-maintenant">Envoyer vers mon cloud</button><button id="sauver-plus-tard">Plus tard</button></div></div>`;
+}
+
+async function partagerSauvegarde() {
+  const f = fichierExport(true);
+  if (!navigator.canShare?.({ files: [f] })) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(fichierExport()); a.download = f.name.replace(".txt", ".json"); a.click();
+    etat.derniereSauvegarde = aujourdhui(); sauver(); rendre();
+    toast("Fichier téléchargé : range-le dans ton cloud");
+    return;
+  }
+  try {
+    await navigator.share({ files: [f], title: "Sauvegarde plantes" });
+    etat.derniereSauvegarde = aujourdhui(); sauver(); rendre();
+    toast("Sauvegarde envoyée ✓");
+  } catch (e) { if (e.name !== "AbortError") toast("Partage impossible : " + e.message); }
+}
+
 // ---------- rendu ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = (id) => document.getElementById(id);
@@ -306,11 +349,11 @@ function vueJour() {
     ${lesPlantes().length ? "" : `<div class="bienvenue">
       <h2>Bienvenue 🌱</h2>
       <p>Cette app te rappelle quand vérifier l'arrosage, tailler, rempoter, sortir ou rentrer tes plantes, en tenant compte de la météo.</p>
-      <ol><li>Ajoute ta première plante : photo, identification, et la fiche se remplit.</li>
-      <li>Indique ta ville dans Réglages pour les alertes gel.</li>
-      <li>Installe l'app : menu du navigateur → "Ajouter à l'écran d'accueil".</li></ol>
+      <ol><li>Ajoute tes plantes : photo, identification, et la fiche se remplit.</li>
+      <li>Indique ta ville dans Réglages pour les alertes gel.</li></ol>
       <a class="bouton large" href="#/ajouter">＋ Ajouter ma première plante</a>
       <p class="petit">Tes plantes et ton historique restent dans ton téléphone. Personne d'autre ne les voit.</p></div>`}
+    ${carteInstall() || carteSauvegarde(auj)}
     <h2>À faire ${afaire.length ? `<span class="badge">${afaire.length}</span>` : ""}</h2>
     ${afaire.length ? `<ul class="liste">${afaire.map((x) => ligneTache(x, auj)).join("")}</ul>` : `<p class="vide">Rien à faire aujourd'hui 🌿</p>`}
     <h2>Dans les 14 jours</h2>
@@ -411,6 +454,7 @@ function vueAjout(id) {
       <label class="bouton secondaire demi">📷 Prendre une photo<input class="f-photo" type="file" accept="image/*" capture="environment" hidden></label>
       <label class="bouton secondaire demi">🖼️ Galerie<input class="f-photo" type="file" accept="image/*" hidden></label>
     </div>
+    ${!existant ? `<details><summary>Ou choisir une plante courante</summary><div class="biblio">${window.BIBLIO.map((id) => { const p = PLANTES.find((x) => x.id === id); return p ? `<button class="choix" data-biblio="${id}">${p.emoji} ${esc(p.nom)} <span class="petit">${esc(p.espece)}</span></button>` : ""; }).join("")}</div></details>` : ""}
     <h2>Identifier</h2>
     <div class="ligne">
       <button id="id-plantnet">🔍 Pl@ntNet</button>
@@ -569,7 +613,8 @@ async function identifierPlantNet() {
   lireForm();
   const res = $("id-resultats");
   if (!brouillon.photo) { toast("Ajoute d'abord une photo"); return; }
-  if (!etat.plantnetKey) {
+  const cleApi = etat.plantnetKey || window.CLE_PLANTNET_PARTAGEE;
+  if (!cleApi) {
     res.innerHTML = `<p class="petit">Il faut une clé Pl@ntNet gratuite : <a href="#/reglages">Réglages</a>.</p>`;
     return;
   }
@@ -578,7 +623,7 @@ async function identifierPlantNet() {
     const fd = new FormData();
     fd.append("images", fichierHD || await dataUrlVersBlob(brouillon.photo), "photo.jpg");
     fd.append("organs", "auto");
-    const r = await appelPlantNet(`https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(etat.plantnetKey)}&lang=fr&nb-results=3`, { method: "POST", body: fd });
+    const r = await appelPlantNet(`https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(cleApi)}&lang=fr&nb-results=3`, { method: "POST", body: fd });
     if (r.status === 404) { res.innerHTML = `<p class="petit">Pl@ntNet ne reconnaît pas de plante sur cette photo. Essaie avec une feuille ou une fleur bien nette, en gros plan.</p>`; return; }
     const j = await r.json();
     brouillon.propositions = (j.results || []).slice(0, 3).map((x) => ({
@@ -593,11 +638,33 @@ async function identifierPlantNet() {
   }
 }
 
+const MERCI_PLANTNET = `<p class="petit">Identification par <a href="https://plantnet.org" target="_blank" rel="noopener">Pl@ntNet</a>, projet de science participative français (Cirad, Inria, INRAE, IRD), gratuit, sans publicité ni revente de données, et en partie open source. Il vit des dons : <a href="https://donorbox.org/plantnet-donation-fr" target="_blank" rel="noopener">le soutenir</a>.</p>`;
+
 function rendrePropositions(b) {
   if (!b.propositions?.length) return "";
   return b.propositions.map((x, i) => `<button class="choix ${i === b.choix ? "choisi" : ""}" data-prop="${i}">
       ${i === b.choix ? "✓ " : ""}<b>${esc(x.latin)}</b>${x.commun ? ` · ${esc(x.commun)}` : ""} <span class="petit">${Math.round(x.score * 100)} %</span></button>`).join("")
-    + `<p class="petit">La proposition la plus probable est appliquée. Touche une autre pour la choisir. Identification par l'API Pl@ntNet.</p>`;
+    + `<p class="petit">La proposition la plus probable est appliquée. Touche une autre pour la choisir.</p>${MERCI_PLANTNET}`;
+}
+
+// Fiche générique tirée d'une plante de départ, sans dates ni historique.
+function depuisBiblio(id) {
+  const p = PLANTES.find((x) => x.id === id);
+  lireForm();
+  brouillon.nom = p.nom;
+  brouillon.espece = p.espece;
+  brouillon.type = deviner(p.espece) || "plante-verte";
+  if (p.lieu === "mobile" || p.lieu === "exterieur") brouillon.lieu = p.lieu;
+  const fiche = id === "olivier" ? ["Plein soleil. Un hiver frais lui convient mieux que la chaleur d'un intérieur.", "Jamais d'eau stagnante dans le cache-pot."] : (p.fiche || []);
+  brouillon.ia = {
+    jours: { ...p.arrosage.jours },
+    consigne: p.arrosage.consigne,
+    taches: p.taches.filter((t) => !t.date).map(({ faitLe, ...t }) => ({ ...t })),
+    fiche: fiche.filter((f) => !/novembre 2026|rentré|convalescence/i.test(f)),
+    gel: p.gel,
+  };
+  rendre();
+  toast(`Fiche ${p.nom} chargée : complète l'emplacement puis enregistre`);
 }
 
 function choisirProposition(i) {
@@ -613,8 +680,8 @@ function choisirProposition(i) {
 }
 
 async function testerCle() {
-  const cle = $("cle-plantnet").value.trim();
-  etat.plantnetKey = cle; sauver();
+  const cle = $("cle-plantnet").value.trim() || window.CLE_PLANTNET_PARTAGEE;
+  etat.plantnetKey = $("cle-plantnet").value.trim(); sauver();
   const out = $("test-cle");
   out.textContent = "Test en cours…";
   try {
@@ -681,7 +748,9 @@ function vueReglages() {
     <button id="geo">Utiliser ma position</button>
     <p class="petit">Prévisions Open-Meteo pour les alertes gel et le bon moment pour sortir les plantes. La position reste dans ton téléphone.</p>
     <h2>Identification Pl@ntNet</h2>
-    <p class="petit">Crée une clé gratuite sur my.plantnet.org (500 identifications par jour). Dans les réglages de ta clé, coche "Expose my API key" et ajoute comme domaine autorisé, exactement : <b>https://gepamal.github.io</b></p>
+    ${window.CLE_PLANTNET_PARTAGEE ? `<p class="petit">L'identification marche sans rien faire, avec une clé partagée. Si tu préfères la tienne : crée-la gratuitement sur my.plantnet.org, coche "Expose my API key" et autorise le domaine <b>https://gepamal.github.io</b>.</p>`
+      : `<p class="petit">Crée une clé gratuite sur my.plantnet.org (500 identifications par jour). Dans les réglages de ta clé, coche "Expose my API key" et ajoute comme domaine autorisé, exactement : <b>https://gepamal.github.io</b></p>`}
+    ${MERCI_PLANTNET}
     <div class="ligne"><input id="cle-plantnet" placeholder="Clé API Pl@ntNet" value="${esc(etat.plantnetKey)}"><button id="sauver-cle">Tester</button></div>
     <p id="test-cle" class="petit"></p>
     <h2>Rappel quotidien</h2>
@@ -765,6 +834,7 @@ function brancher() {
     rendre();
   }));
   on("id-plantnet", "onclick", identifierPlantNet);
+  document.querySelectorAll("button[data-biblio]").forEach((bt) => (bt.onclick = () => depuisBiblio(bt.dataset.biblio)));
   document.querySelectorAll("button[data-prop]").forEach((bt) => (bt.onclick = () => choisirProposition(+bt.dataset.prop)));
   on("id-ia", "onclick", demanderIA);
   on("appliquer-json", "onclick", () => {
@@ -773,6 +843,10 @@ function brancher() {
   });
   on("f-type", "onchange", () => { lireForm(); });
   on("enregistrer", "onclick", enregistrer);
+  on("installer", "onclick", async () => { promptInstall.prompt(); await promptInstall.userChoice; promptInstall = null; rendre(); });
+  on("install-ok", "onclick", () => { etat.installMasque = true; sauver(); rendre(); });
+  on("sauver-maintenant", "onclick", partagerSauvegarde);
+  on("sauver-plus-tard", "onclick", () => { etat.sauvegardeReportee = ajout(aujourdhui(), 7); sauver(); rendre(); });
 
   // réglages
   document.querySelectorAll("button[data-theme]").forEach((b) => (b.onclick = () => { etat.theme = b.dataset.theme; sauver(); rendre(); }));
@@ -805,14 +879,7 @@ function brancher() {
     a.download = `plantes-${aujourdhui()}.json`;
     a.click();
   });
-  on("partager", "onclick", async () => {
-    const f = fichierExport(true);
-    if (!navigator.canShare?.({ files: [f] })) { toast("Ce navigateur ne permet pas de partager un fichier : utilise Exporter"); return; }
-    try {
-      await navigator.share({ files: [f], title: "Sauvegarde plantes" });
-      etat.derniereSauvegarde = aujourdhui(); sauver();
-    } catch (e) { if (e.name !== "AbortError") toast("Partage impossible : " + e.message); }
-  });
+  on("partager", "onclick", partagerSauvegarde);
   on("import", "onchange", async () => {
     try {
       const data = JSON.parse(await $("import").files[0].text());

@@ -12,6 +12,13 @@
 // gel : température mini supportée dehors (°C), pour les alertes météo.
 // mobile : la plante passe l'été dehors et l'hiver dedans.
 
+// Clé Pl@ntNet partagée par défaut (n'accepte que les appels venant de https://gepamal.github.io).
+// Chaque utilisateur peut la remplacer par la sienne dans Réglages.
+window.CLE_PLANTNET_PARTAGEE = "";
+
+// Plantes proposées dans "Choisir une plante courante" (fiches nettoyées de l'historique de Saad).
+window.BIBLIO = ["pilea", "aeonium", "oxalis", "anthurium", "euphorbe", "bruyere", "azalee", "avocatier", "citronnier", "olivier"];
+
 window.PLANTES = [
   {
     id: "azalee",
