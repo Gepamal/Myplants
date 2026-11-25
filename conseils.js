@@ -199,6 +199,6 @@ function splash() {
       ${f("🔒", "Tes données chez toi", "Tout reste dans ton téléphone")}
     </div>
     <p class="splash-libre"><b>Ouvert, gratuit, souverain :</b> Pl@ntNet (recherche publique française, <a href="https://donorbox.org/plantnet-donation-fr" target="_blank" rel="noopener">à soutenir</a>), Open-Meteo, Euria (Suisse) et Mistral (Paris). Code public sur <a href="https://github.com/Gepamal/Myplants" target="_blank" rel="noopener">GitHub</a>.</p>
-    <button class="ok large" id="splash-ok">C'est parti <span class="sign">· Saad ${ACACIA}</span></button>
+    <button class="ok large" id="splash-ok">C'est parti <span class="sign">· Saad 🌿</span></button>
   </div></div>`;
 }
