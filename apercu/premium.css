@@ -1,0 +1,131 @@
+/* Aperçu "premium" : surcouche de style, mêmes données et même logique que l'app. */
+:root, [data-theme="clair"] {
+  --fond: #f4f1ea;
+  --carte: #ffffff;
+  --texte: #17201b;
+  --doux: #727a74;
+  --vert: #1f4d33;
+  --vert-clair: #e6efe7;
+  --bouton: #1f4d33;
+  --bord: rgba(23, 32, 27, .07);
+  --ombre: 0 1px 2px rgba(23, 32, 27, .05), 0 6px 20px rgba(31, 77, 51, .08);
+  --ombre-forte: 0 2px 6px rgba(23, 32, 27, .08), 0 16px 40px rgba(31, 77, 51, .16);
+  --degrade: linear-gradient(135deg, #2a6544 0%, #1a4029 100%);
+  --rayon: 22px;
+}
+[data-theme="sombre"] {
+  --fond: #121413;
+  --carte: #1c1f1d;
+  --texte: #eeeee8;
+  --doux: #a2a8a3;
+  --vert: #9fd3ae;
+  --vert-clair: #1f2b23;
+  --bouton: #2f7a4f;
+  --bord: rgba(255, 255, 255, .06);
+  --ombre: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+  --ombre-forte: 0 2px 8px rgba(0, 0, 0, .5), 0 18px 44px rgba(0, 0, 0, .5);
+  --degrade: linear-gradient(135deg, #3a8a5d 0%, #276143 100%);
+}
+body.premium {
+  background: radial-gradient(120% 60% at 50% -10%, var(--vert-clair) 0%, var(--fond) 60%) fixed, var(--fond);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+.premium main { padding: 20px 18px 120px; }
+.premium h1 { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; margin: 12px 0 16px; }
+.premium h1 small { display: inline-block; font-size: .8rem; font-weight: 600; letter-spacing: 0; color: var(--vert); background: var(--vert-clair); padding: 4px 10px; border-radius: 999px; vertical-align: middle; margin-left: 8px; }
+.premium h2 { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--doux); margin: 28px 0 10px; }
+
+/* cartes arrondies, sans bordure, ombre douce */
+.premium .tache, .premium .bienvenue, .premium .sf, .premium .faq details, .premium .avis li,
+.premium .ia-europe, .premium .meteo div, .premium .validation, .premium .zone-photo {
+  border: none; border-radius: var(--rayon); box-shadow: var(--ombre); background: var(--carte);
+}
+.premium .tache { padding: 16px; margin-bottom: 12px; }
+.premium .tache.retard { box-shadow: inset 4px 0 0 var(--retard), var(--ombre); }
+.premium .tache.flash { background: var(--vert-clair); box-shadow: inset 0 0 0 2px var(--bouton), var(--ombre); }
+.premium .t-plante { font-size: 1.02rem; }
+.premium .t-label { font-weight: 500; }
+.premium .vig-ico .vignette, .premium .vig-ico .emoji { width: 54px; height: 54px; border-radius: 16px; background: var(--vert-clair); }
+.premium .vig-ico i { box-shadow: var(--ombre); }
+
+/* boutons */
+.premium button, .premium .bouton {
+  border-radius: 14px; border: none; background: var(--vert-clair); color: var(--texte); font-weight: 600;
+  transition: transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, background .2s;
+}
+.premium button.ok, .premium .bouton:not(.secondaire) { background: var(--degrade); color: #fff; box-shadow: 0 6px 18px rgba(31, 77, 51, .28); }
+.premium .bouton.secondaire { background: var(--carte); box-shadow: var(--ombre); }
+.premium button.danger { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+.premium button:active, .premium .bouton:active, .premium .tuile:active, .premium .tache:active { transform: scale(.97); }
+.premium .vedette { padding: 18px; font-size: 1.1rem; border-radius: 18px; }
+.premium input, .premium select, .premium textarea { border: none; border-radius: 14px; background: var(--carte); box-shadow: inset 0 0 0 1px var(--bord), var(--ombre); }
+
+/* météo en pastilles */
+.premium .meteo { gap: 6px; }
+.premium .meteo div { border-radius: 16px; padding: 8px 0; }
+.premium .meteo .froid { color: #3b82f6 !important; }
+
+/* mosaïque */
+.premium .mosaique { gap: 12px; }
+.premium .tuile { border: none; border-radius: 24px; box-shadow: var(--ombre); transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s; }
+.premium .tuile img { transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.premium .tuile:hover img { transform: scale(1.06); }
+.premium .tuile-emoji { background: linear-gradient(160deg, var(--vert-clair), var(--carte)); }
+.premium .tuile-taches { border-radius: 999px; padding: 2px 7px; backdrop-filter: blur(6px); background: rgba(255, 255, 255, .85); box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+.premium .tuile .pastille { width: 14px; height: 14px; box-shadow: 0 0 0 3px rgba(255, 255, 255, .7); }
+.premium .pastille.orange { animation: pouls 2.2s ease-in-out infinite; }
+@keyframes pouls { 50% { box-shadow: 0 0 0 6px rgba(227, 155, 45, .25); } }
+
+/* barre de navigation flottante, effet verre */
+.premium nav {
+  left: 14px; right: 14px; bottom: calc(12px + env(safe-area-inset-bottom)); padding: 6px;
+  border: none; border-radius: 26px; background: color-mix(in srgb, var(--carte) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: var(--ombre-forte); max-width: 520px; margin: 0 auto;
+}
+.premium nav a { border-radius: 20px; padding: 8px 0; transition: background .3s, color .3s; }
+.premium nav a b { display: block; font-size: 1.25rem; font-weight: 400; transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
+.premium nav a.actif { background: var(--vert-clair); color: var(--vert); }
+.premium nav a.actif b { transform: translateY(-2px) scale(1.12); }
+
+/* jauge */
+.premium .jauge-barre { height: 10px; border: none; border-radius: 999px; background: var(--vert-clair); }
+.premium .jauge-niveau { border-radius: 999px; background-image: linear-gradient(90deg, rgba(255, 255, 255, .25), transparent); transition: width .8s cubic-bezier(.2, .8, .2, 1); }
+
+/* toast */
+.premium #toast { border-radius: 18px; bottom: calc(96px + env(safe-area-inset-bottom)); box-shadow: var(--ombre-forte); animation: monte .35s cubic-bezier(.2, .8, .2, 1); }
+@keyframes monte { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+
+/* entrée des écrans : fondu et léger glissement, éléments en cascade */
+@keyframes entree { from { opacity: 0; transform: translateY(14px); } }
+.premium.transition #app > * { animation: entree .45s cubic-bezier(.2, .8, .2, 1) both; }
+.premium.transition .liste > li, .premium.transition .mosaique > a, .premium.transition .splash-grille > div, .premium.transition .faq > details {
+  animation: entree .5s cubic-bezier(.2, .8, .2, 1) both;
+}
+.premium.transition .liste > li:nth-child(2), .premium.transition .mosaique > a:nth-child(2), .premium.transition .splash-grille > div:nth-child(2) { animation-delay: .05s; }
+.premium.transition .liste > li:nth-child(3), .premium.transition .mosaique > a:nth-child(3), .premium.transition .splash-grille > div:nth-child(3) { animation-delay: .1s; }
+.premium.transition .liste > li:nth-child(4), .premium.transition .mosaique > a:nth-child(4), .premium.transition .splash-grille > div:nth-child(4) { animation-delay: .15s; }
+.premium.transition .liste > li:nth-child(5), .premium.transition .mosaique > a:nth-child(5), .premium.transition .splash-grille > div:nth-child(5) { animation-delay: .2s; }
+.premium.transition .liste > li:nth-child(n+6), .premium.transition .mosaique > a:nth-child(n+6), .premium.transition .splash-grille > div:nth-child(n+6) { animation-delay: .25s; }
+
+/* validation d'une tâche : la carte se coche puis s'efface */
+.premium .tache.valide { animation: valide .42s cubic-bezier(.2, .8, .2, 1) forwards; }
+@keyframes valide {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.02); background: var(--vert-clair); box-shadow: inset 0 0 0 2px var(--bouton), var(--ombre); }
+  100% { transform: scale(.96) translateX(24px); opacity: 0; }
+}
+
+/* présentation */
+.premium #splash { background: radial-gradient(100% 50% at 50% 0%, var(--vert-clair), var(--fond)); }
+.premium .sf { padding: 1.4vh 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .premium *, .premium *::before, .premium *::after { animation: none !important; transition: none !important; }
+}
+/* retouches */
+.premium .bienvenue h2, .premium .validation h2 { text-transform: none; letter-spacing: -.01em; font-size: 1.15rem; color: var(--texte); margin: 14px 0 6px; }
+.premium .pastille.orange { animation: none; }
+.premium .tuile .pastille.orange { animation: pouls 2.2s ease-in-out infinite; }
+.premium .tuile-emoji + .pastille + .tuile-taches + .tuile-nom, .premium .tuile-emoji + .pastille + .tuile-nom { background: none; color: var(--texte); }
