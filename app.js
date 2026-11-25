@@ -4,7 +4,7 @@
 const CLE = "plantes.v1";
 const etatDefaut = () => ({
   last: {}, snooze: {}, log: [], notes: {}, meteo: null, lieu: null,
-  plantesPerso: [], photos: {}, masquees: [], rythme: {},
+  plantesPerso: [], photos: {}, masquees: [], rythme: {}, conditions: {},
   theme: "clair", plantnetKey: "",
 });
 let etat = charger();
@@ -371,14 +371,15 @@ function vuePlantes() {
       const prochaine = ts[0];
       return `<li><a href="#/plante/${p.id}">${vignette(p, "gros")}
         <div><b>${esc(p.nom)}</b><small>${esc(p.espece)}</small>
-        <small>${n ? `<span class="badge">${n}</span> à faire` : prochaine ? `Prochain : ${joli(prochaine.due)}` : ""}</small></div></a></li>`;
+        <small>${n ? `<span class="badge">${n}</span> à faire` : prochaine ? `Prochain : ${joli(prochaine.due)}` : ""}${nbAlertes(p, auj) ? ` · <span class="attention">⚠ emplacement</span>` : ""}</small></div></a></li>`;
     }).join("")}</ul>`;
   };
   return `<h1>Mes plantes</h1>
     ${boutonPhoto("📷 Photographier une plante")}
     <p class="petit centre"><a href="#/ajouter">Autres façons d'ajouter</a></p>
     ${groupe("Intérieur", (p) => position(p) === "dedans")}
-    ${groupe("Extérieur", (p) => position(p) === "dehors")}`;
+    ${groupe("Extérieur", (p) => position(p) === "dehors")}
+    ${lesPlantes().length ? `<a class="bouton large secondaire" href="#/bilan">🩺 Faire le bilan de mes plantes</a>` : ""}`;
 }
 
 function vuePlante(id) {
@@ -406,6 +407,7 @@ function vuePlante(id) {
     <p class="espece">${esc(p.espece)}</p>
     <dl><dt>Où</dt><dd>${esc(p.emplacement)} · <b>${nomPosition(p)}</b></dd>
     ${p.contenant ? `<dt>Contenant</dt><dd>${esc(p.contenant)}</dd>` : ""}</dl>
+    ${blocEmplacement(p, auj)}
     ${a?.consigne ? `<h2>Arrosage</h2><p>${esc(a.consigne)}</p>` : ""}
     ${aDesJours ? `<p class="petit">Vérification : hiver ${fmt(a.jours.hiver)} · printemps ${fmt(a.jours.printemps)} · été ${fmt(a.jours.ete)} · automne ${fmt(a.jours.automne)}</p>
       <div class="ligne rythme"><span class="petit">Rythme ${r === 1 ? "de base" : r > 1 ? `espacé de ${Math.round((r - 1) * 100)} %` : `resserré de ${Math.round((1 - r) * 100)} %`}</span>
@@ -480,7 +482,7 @@ function vueAjout(id) {
     <div id="id-resultats">${rendrePropositions(b)}</div>
     <div id="etapes-ia" class="alerte" hidden>
       <b>1.</b> La question est copiée ✓<br>
-      <b>2.</b> Choisis ton IA, puis dans le champ de message : appui long → <b>Coller</b>, et envoie.<br>
+      <b>2.</b> Choisis ton IA, de préférence européenne : <b>Euria</b> (Infomaniak, hébergée en Suisse, n'entraîne pas ses modèles sur tes échanges) ou <b>Mistral Vibe</b> (Mistral AI, Paris). Dans le champ de message : appui long → <b>Coller</b>, et envoie.<br>
       <b>3.</b> Copie sa réponse (bouton copier du bloc de code) et reviens ici la coller ci-dessous.
       <button id="ouvrir-partage" class="ok large">Choisir mon IA</button>
     </div>
@@ -813,11 +815,12 @@ function rendre() {
   if (h.startsWith("#/plante/")) html = vuePlante(decodeURIComponent(h.slice(9)));
   else if (h === "#/plantes") html = vuePlantes();
   else if (h === "#/reglages") html = vueReglages();
+  else if (h === "#/bilan") html = vueBilan();
   else if (h === "#/ajouter") html = vueAjout(null);
   else if (h.startsWith("#/modifier/")) html = vueAjout(decodeURIComponent(h.slice(11)));
   else html = vueJour();
   $("app").innerHTML = html;
-  const onglet = /^#\/(plante\/|plantes|ajouter|modifier)/.test(h) ? "#/plantes" : h === "#" ? "#/" : h;
+  const onglet = /^#\/(plante\/|plantes|ajouter|modifier|bilan)/.test(h) ? "#/plantes" : h === "#" ? "#/" : h;
   document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("actif", a.getAttribute("href") === onglet));
   brancher();
 }
@@ -829,6 +832,8 @@ function brancher() {
   // fiche plante
   const pid = location.hash.startsWith("#/plante/") ? decodeURIComponent(location.hash.slice(9)) : null;
   on("notes", "oninput", () => { etat.notes[pid] = $("notes").value; sauver(); });
+  if (pid) brancherEmplacement(pid);
+  if (location.hash === "#/bilan") brancherBilan();
   document.querySelectorAll("button[data-rythme]").forEach((b) => (b.onclick = () => {
     const v = b.dataset.rythme;
     etat.rythme[pid] = v === "reset" ? 1 : Math.min(3, Math.max(0.4, +((etat.rythme[pid] || 1) * +v).toFixed(2)));

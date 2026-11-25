@@ -168,3 +168,11 @@ button.lien { border: none; background: none; color: var(--vert); padding: 6px 0
 .validation p { margin: 8px 0; }
 .lieux button { flex: 1; padding: 8px 4px; font-size: .9rem; }
 .lieux button.choisi { border: 2px solid var(--bouton); font-weight: 600; }
+.avis { list-style: none; padding: 0; margin: 8px 0; }
+.avis li { padding: 8px 10px; border-radius: 10px; margin-bottom: 6px; background: var(--carte); border: 1px solid var(--bord); }
+.avis li.bon { border-color: var(--bouton); }
+.avis li.mauvais { border-color: var(--retard); }
+.attention { color: var(--retard); font-weight: 600; }
+.ia-europe { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; padding: 4px 14px; margin: 10px 0; }
+.ia-europe ul { padding-left: 18px; }
+pre.prompt { white-space: pre-wrap; font-size: .8rem; background: var(--carte); border: 1px solid var(--bord); border-radius: 10px; padding: 10px; }
