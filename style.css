@@ -219,3 +219,5 @@ pre.prompt { white-space: pre-wrap; font-size: .8rem; background: var(--carte); 
 .faq details { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
 .faq summary { color: var(--texte); font-weight: 600; margin: 0; }
 .faq p { margin: 8px 0 2px; color: var(--doux); line-height: 1.45; }
+.lot-ligne { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+.lot-ligne img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; flex: none; }

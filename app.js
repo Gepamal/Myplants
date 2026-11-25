@@ -825,9 +825,13 @@ function vueReglages() {
     <button id="departs">${etat.departs === "inclus" ? "Ne plus les afficher" : "Les afficher"}</button>
     <h2>À propos</h2>
     <button id="revoir-splash">Revoir la présentation</button>
+    <h2>Photos de mes plantes</h2>
+    <p class="petit">Choisis plusieurs photos dans ta galerie, puis indique à quelle plante va chacune.</p>
+    <label class="bouton secondaire">🖼️ Choisir des photos<input id="lot-photos" type="file" accept="image/*" multiple hidden></label>
+    <div id="lot"></div>
     <h2>Sauvegarde</h2>
     <p class="petit">Tout est stocké dans ce navigateur, photos comprises. Exporte régulièrement.</p>
-    <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept=".json,.txt,application/json,text/plain" hidden></label></div>`;
+    <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" hidden></label></div>`;
 }
 
 function appliquerTheme() {
@@ -952,6 +956,26 @@ function brancher() {
     a.click();
   });
   on("partager", "onclick", partagerSauvegarde);
+  on("lot-photos", "onchange", async () => {
+    const fichiers = [...$("lot-photos").files];
+    if (!fichiers.length) return;
+    const ps = lesPlantes();
+    const sans = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const lot = [];
+    for (const f of fichiers) {
+      const nom = sans(f.name);
+      const devine = ps.find((p) => nom.includes(sans(p.id)) || nom.includes(sans(p.nom).split(" ")[0]));
+      lot.push({ img: await compresser(f, 640), id: devine?.id || "" });
+    }
+    const opts = (v) => `<option value="">Ne pas utiliser</option>` + ps.map((p) => `<option value="${p.id}" ${p.id === v ? "selected" : ""}>${esc(p.nom)}</option>`).join("");
+    $("lot").innerHTML = lot.map((x, i) => `<div class="lot-ligne"><img src="${x.img}" alt=""><select data-lot="${i}">${opts(x.id)}</select></div>`).join("")
+      + `<button class="ok large" id="lot-ok">Enregistrer ces photos</button>`;
+    $("lot-ok").onclick = () => {
+      let n = 0;
+      document.querySelectorAll("[data-lot]").forEach((sel) => { if (sel.value) { etat.photos[sel.value] = lot[+sel.dataset.lot].img; n++; } });
+      if (sauver()) { toast(`${n} photo${n > 1 ? "s" : ""} associée${n > 1 ? "s" : ""} 🌿`); rendre(); }
+    };
+  });
   on("import", "onchange", async () => {
     const fichier = $("import").files[0];
     if (!fichier) return;
