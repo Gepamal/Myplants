@@ -177,25 +177,21 @@ function brancherBilan() {
 
 // ---------- présentation au premier démarrage ----------
 function splash() {
+  const f = (i, t, d) => `<div class="sf"><span>${i}</span><b>${t}</b><small>${d}</small></div>`;
   return `<div id="splash"><div class="splash-in">
     <div class="splash-logo">🌱</div>
-    <h1>Mes plantes, sans prise de tête</h1>
-    <p class="splash-intro">Une petite app faite maison pour garder tes plantes en forme, dedans comme dehors. Pas de compte, pas de pub, pas d'abonnement.</p>
-
-    <div class="splash-f"><span>📷</span><div><b>Tu photographies, elle reconnaît.</b><br>Pl@ntNet identifie la plante et sa fiche d'entretien se remplit toute seule. T'as plus qu'à valider.</div></div>
-    <div class="splash-f"><span>💧</span><div><b>Elle te dit quand vérifier.</b><br>Arrosage, engrais, taille, rempotage… Et elle apprend : chaque "pas besoin" espace un peu le rythme.</div></div>
-    <div class="splash-f"><span>🌡️</span><div><b>Elle surveille la météo.</b><br>Alerte gel pour les plantes dehors, feu vert pour les sortir au printemps.</div></div>
-    <div class="splash-f"><span>🪟</span><div><b>Elle juge l'emplacement.</b><br>Fenêtre, distance, radiateur : tu sais tout de suite si ta plante est au bon endroit.</div></div>
-    <div class="splash-f"><span>🩺</span><div><b>Un bilan quand tu veux.</b><br>Tout ton jardin résumé en un message pour une IA européenne, qui te donne ses priorités.</div></div>
-
-    <h2>Ouvert, gratuit, souverain</h2>
-    <ul class="splash-l">
-      <li><b>Pl@ntNet</b> : science participative française (Cirad, Inria, INRAE, IRD), gratuite et sans pub. Si tu l'aimes, <a href="https://donorbox.org/plantnet-donation-fr" target="_blank" rel="noopener">soutiens-la</a>.</li>
-      <li><b>Open-Meteo</b> : météo open source, sans compte.</li>
-      <li><b>Euria</b> (Infomaniak, hébergée en Suisse) et <b>Mistral</b> (Paris) pour les bilans IA. Rien ne part sans que tu l'envoies toi-même.</li>
-      <li><b>Tes données restent dans ton téléphone.</b> Le code de l'app est public sur <a href="https://github.com/Gepamal/Myplants" target="_blank" rel="noopener">GitHub</a>.</li>
-    </ul>
-    <p class="splash-sign">Saad 🌿</p>
-    <button class="ok large" id="splash-ok">C'est parti</button>
+    <h1>Mes plantes</h1>
+    <p class="splash-devise">Je les soigne, elles m'embellissent la vie.</p>
+    <p class="splash-intro">Pas de compte, pas de pub, pas d'abonnement.</p>
+    <div class="splash-grille">
+      ${f("📷", "Photo, et c'est rempli", "Pl@ntNet la reconnaît, t'as plus qu'à valider")}
+      ${f("💧", "Des rappels qui apprennent", "Chaque \"pas besoin\" espace le rythme")}
+      ${f("🌡️", "La météo veille", "Alerte gel, feu vert pour sortir les pots")}
+      ${f("🪟", "Le bon endroit ?", "Fenêtre, distance, radiateur : verdict direct")}
+      ${f("🩺", "Un bilan à la demande", "Par une IA européenne, quand tu veux")}
+      ${f("🔒", "Tes données chez toi", "Tout reste dans ton téléphone")}
+    </div>
+    <p class="splash-libre"><b>Ouvert, gratuit, souverain :</b> Pl@ntNet (recherche publique française, <a href="https://donorbox.org/plantnet-donation-fr" target="_blank" rel="noopener">à soutenir</a>), Open-Meteo, Euria (Suisse) et Mistral (Paris). Code public sur <a href="https://github.com/Gepamal/Myplants" target="_blank" rel="noopener">GitHub</a>.</p>
+    <button class="ok large" id="splash-ok">C'est parti <span class="sign">· Saad 🌿</span></button>
   </div></div>`;
 }
