@@ -835,7 +835,7 @@ function vueReglages() {
 function appliquerTheme() {
   const sombre = etat.theme === "sombre" || (etat.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = sombre ? "sombre" : "clair";
-  document.querySelector('meta[name="theme-color"]').content = sombre ? "#161816" : "#1f3d2b";
+  document.querySelector('meta[name="theme-color"]').content = sombre ? "#121413" : "#f4f1ea";
 }
 
 // Android n'accepte de partager que certains types de fichiers : le .json en est exclu, le .txt passe.
