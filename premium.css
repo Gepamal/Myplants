@@ -134,3 +134,5 @@ body.premium {
   .premium .splash-in { gap: 1.1vh; }
   .premium .sf small { font-size: .8rem; }
 }
+.premium .bouton.bilan { background: var(--carte); color: var(--vert); box-shadow: inset 0 0 0 2px var(--bouton), var(--ombre); display: flex; flex-direction: column; gap: 2px; margin-top: 20px; }
+.premium .bouton.bilan small { color: var(--doux); font-weight: 400; font-size: .8rem; }

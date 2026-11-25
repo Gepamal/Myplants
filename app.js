@@ -309,7 +309,7 @@ function iconeTache(id, label) {
   const t = `${id} ${label}`.toLowerCase();
   const regles = [[/arros/, "💧"], [/engrais/, "🧪"], [/taill|pincer|rabattre/, "✂️"], [/rempot|surfa|diviser|rejets/, "🪴"],
     [/sortir/, "☀️"], [/rentrer/, "🏠"], [/cochenille|inspect|vérifier le dessous|feuilles \(|dessous/, "🔍"], [/fan[ée]es|fleurs/, "🥀"],
-    [/tourner/, "🔄"], [/dépoussi|feuilles/, "🧽"], [/gel|protég|paill|voile/, "🧣"], [/goutte|purge|remise|arrosage auto/, "🔧"]];
+    [/tourner/, "🔄"], [/dépoussi|feuilles/, "🧽"], [/goutte|purge|remise|arrosage auto/, "🔧"], [/gel|protég|paill|voile/, "🧣"]];
   return (regles.find(([re]) => re.test(t)) || [null, "📌"])[1];
 }
 
@@ -400,7 +400,7 @@ function vuePlantes() {
     <p class="petit centre"><a href="#/ajouter">Autres façons d'ajouter</a></p>
     ${groupe("Intérieur", (p) => position(p) === "dedans")}
     ${groupe("Extérieur", (p) => position(p) === "dehors")}
-    ${lesPlantes().length ? `<a class="bouton large secondaire" href="#/bilan">🩺 Faire le bilan de mes plantes</a>` : ""}`;
+    ${lesPlantes().length ? `<a class="bouton large bilan" href="#/bilan">🩺 Faire le bilan de mes plantes<small>Emplacements à revoir, et avis d'une IA européenne</small></a>` : ""}`;
 }
 
 function jaugeArrosage(p, auj) {
