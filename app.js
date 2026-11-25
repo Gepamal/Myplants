@@ -435,8 +435,11 @@ function vuePlante(id) {
   const fmt = (v) => (v ? `${Math.max(1, Math.round(v * r))} j` : "-");
   return `
     <a class="retour" href="#/plantes">‹ Plantes</a>
-    ${etat.photos[p.id] ? `<img class="photo-plante" src="${etat.photos[p.id]}" alt="">` : ""}
-    <h1>${etat.photos[p.id] ? "" : `<span class="emoji">${p.emoji || "🌱"}</span> `}${esc(p.nom)}</h1>
+    <label class="photo-entete">${etat.photos[p.id]
+      ? `<img class="photo-plante" src="${etat.photos[p.id]}" alt=""><span class="photo-changer">📷 Changer</span>`
+      : `<span class="photo-vide"><span class="emoji">${p.emoji || "🌱"}</span><span>📷 Ajouter une photo</span></span>`}
+      <input class="photo-plante-input" type="file" accept="image/*" hidden></label>
+    <h1>${esc(p.nom)}</h1>
     <p class="espece">${esc(p.espece)}</p>
     <dl><dt>Où</dt><dd>${esc(p.emplacement)} · <b>${nomPosition(p)}</b></dd>
     ${p.contenant ? `<dt>Contenant</dt><dd>${esc(p.contenant)}</dd>` : ""}</dl>
@@ -455,7 +458,6 @@ function vuePlante(id) {
     ${hist.length ? `<ul class="hist">${hist.map((l) => `<li><span>${joli(l.date)}</span> ${esc(labelDe(l.k))} : ${nomAction[l.action] || l.action}</li>`).join("")}</ul>` : `<p class="vide">Rien encore.</p>`}
     <h2>Gérer</h2>
     <div class="ligne wrap">
-      <label class="bouton secondaire">📷 ${etat.photos[p.id] ? "Changer la photo" : "Ajouter une photo"}<input id="photo-plante" type="file" accept="image/*" hidden></label>
       <a class="bouton secondaire" href="#/modifier/${p.id}">Modifier</a>
       <button id="supprimer" class="danger">Supprimer</button>
     </div>`;
@@ -881,12 +883,12 @@ function brancher() {
     etat.rythme[pid] = v === "reset" ? 1 : Math.min(3, Math.max(0.4, +((etat.rythme[pid] || 1) * +v).toFixed(2)));
     sauver(); rendre();
   }));
-  on("photo-plante", "onchange", async () => {
-    const f = $("photo-plante").files[0];
+  document.querySelectorAll(".photo-plante-input").forEach((inp) => (inp.onchange = async () => {
+    const f = inp.files[0];
     if (!f) return;
     etat.photos[pid] = await compresser(f, 640);
-    if (sauver()) rendre();
-  });
+    if (sauver()) { rendre(); toast("Photo enregistrée 🌿"); }
+  }));
   on("supprimer", "onclick", () => {
     if (!confirm("Supprimer cette plante, sa photo et son historique ?")) return;
     etat.plantesPerso = etat.plantesPerso.filter((p) => p.id !== pid);
@@ -967,7 +969,7 @@ function brancher() {
       const devine = ps.find((p) => nom.includes(sans(p.id)) || nom.includes(sans(p.nom).split(" ")[0]));
       lot.push({ img: await compresser(f, 640), id: devine?.id || "" });
     }
-    const opts = (v) => `<option value="">Ne pas utiliser</option>` + ps.map((p) => `<option value="${p.id}" ${p.id === v ? "selected" : ""}>${esc(p.nom)}</option>`).join("");
+    const opts = (v) => `<option value="">Choisir la plante…</option>` + ps.map((p) => `<option value="${p.id}" ${p.id === v ? "selected" : ""}>${esc(p.nom)}</option>`).join("");
     $("lot").innerHTML = lot.map((x, i) => `<div class="lot-ligne"><img src="${x.img}" alt=""><select data-lot="${i}">${opts(x.id)}</select></div>`).join("")
       + `<button class="ok large" id="lot-ok">Enregistrer ces photos</button>`;
     $("lot-ok").onclick = () => {

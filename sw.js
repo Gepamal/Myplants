@@ -1,7 +1,7 @@
 // Cache de l'app pour un fonctionnement hors ligne.
 // Incrémente VERSION à chaque modification des fichiers pour forcer la mise à jour.
-const VERSION = "plantes-v25";
-const FICHIERS = ["./", "index.html", "style.css?v=24", "data.js?v=24", "conseils.js?v=24", "app.js?v=24", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
+const VERSION = "plantes-v26";
+const FICHIERS = ["./", "index.html", "style.css?v=25", "data.js?v=25", "conseils.js?v=25", "app.js?v=25", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FICHIERS)).then(() => self.skipWaiting()));

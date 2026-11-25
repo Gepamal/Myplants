@@ -221,3 +221,8 @@ pre.prompt { white-space: pre-wrap; font-size: .8rem; background: var(--carte); 
 .faq p { margin: 8px 0 2px; color: var(--doux); line-height: 1.45; }
 .lot-ligne { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
 .lot-ligne img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; flex: none; }
+.photo-entete { display: block; position: relative; cursor: pointer; margin: 8px 0 0; color: inherit; font-size: 1rem; }
+.photo-entete .photo-plante { margin: 0; }
+.photo-changer { position: absolute; right: 10px; bottom: 10px; background: rgba(0,0,0,.55); color: #fff; border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
+.photo-vide { display: flex; align-items: center; justify-content: center; gap: 12px; height: 140px; border: 2px dashed var(--bord); border-radius: 16px; background: var(--carte); color: var(--doux); }
+.photo-vide .emoji { font-size: 2.6rem; }
