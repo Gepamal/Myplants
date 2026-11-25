@@ -955,6 +955,11 @@ function brancher() {
   on("import", "onchange", async () => {
     try {
       const data = JSON.parse(await $("import").files[0].text());
+      // Paquet de photos seul : on l'ajoute sans toucher au reste.
+      if (data.format === "myplants-photos" && data.photos) {
+        Object.assign(etat.photos, data.photos); sauver();
+        toast(`${Object.keys(data.photos).length} photos ajoutées 🌿`); rendre(); return;
+      }
       if (!data.last || !data.log) throw new Error();
       etat = Object.assign(etatDefaut(), data); sauver(); toast("Import réussi"); rendre();
     } catch { toast("Fichier invalide"); }
