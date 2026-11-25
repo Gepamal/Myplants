@@ -176,3 +176,13 @@ button.lien { border: none; background: none; color: var(--vert); padding: 6px 0
 .ia-europe { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; padding: 4px 14px; margin: 10px 0; }
 .ia-europe ul { padding-left: 18px; }
 pre.prompt { white-space: pre-wrap; font-size: .8rem; background: var(--carte); border: 1px solid var(--bord); border-radius: 10px; padding: 10px; }
+#splash { position: fixed; inset: 0; z-index: 50; background: var(--fond); overflow-y: auto; }
+.splash-in { max-width: 560px; margin: 0 auto; padding: 32px 20px 40px; }
+.splash-logo { font-size: 3rem; text-align: center; }
+#splash h1 { text-align: center; font-size: 1.7rem; margin: 8px 0; }
+.splash-intro { text-align: center; color: var(--doux); font-size: 1.05rem; margin-bottom: 22px; }
+.splash-f { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; line-height: 1.45; }
+.splash-f > span { font-size: 1.6rem; line-height: 1.2; flex: none; width: 34px; text-align: center; }
+.splash-l { padding-left: 18px; line-height: 1.5; }
+.splash-l li { margin-bottom: 8px; }
+.splash-sign { text-align: right; font-style: italic; color: var(--doux); margin: 16px 0 12px; }

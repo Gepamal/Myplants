@@ -789,6 +789,8 @@ function vueReglages() {
     <h2>Plantes de départ</h2>
     <p class="petit">La liste de plantes fournie avec l'app (citronnier, olivier, azalée…).</p>
     <button id="departs">${etat.departs === "inclus" ? "Ne plus les afficher" : "Les afficher"}</button>
+    <h2>À propos</h2>
+    <button id="revoir-splash">Revoir la présentation</button>
     <h2>Sauvegarde</h2>
     <p class="petit">Tout est stocké dans ce navigateur, photos comprises. Exporte régulièrement.</p>
     <div class="ligne wrap"><button id="export">Exporter</button><button id="partager">Envoyer vers mon cloud</button><label class="bouton secondaire">Importer<input id="import" type="file" accept=".json,.txt,application/json,text/plain" hidden></label></div>`;
@@ -819,7 +821,7 @@ function rendre() {
   else if (h === "#/ajouter") html = vueAjout(null);
   else if (h.startsWith("#/modifier/")) html = vueAjout(decodeURIComponent(h.slice(11)));
   else html = vueJour();
-  $("app").innerHTML = html;
+  $("app").innerHTML = html + (etat.splashVu ? "" : splash());
   const onglet = /^#\/(plante\/|plantes|ajouter|modifier|bilan)/.test(h) ? "#/plantes" : h === "#" ? "#/" : h;
   document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("actif", a.getAttribute("href") === onglet));
   brancher();
@@ -868,6 +870,8 @@ function brancher() {
   });
   on("f-type", "onchange", () => { lireForm(); });
   on("enregistrer", "onclick", enregistrer);
+  on("splash-ok", "onclick", () => { etat.splashVu = true; sauver(); rendre(); scrollTo(0, 0); });
+  on("revoir-splash", "onclick", () => { etat.splashVu = false; sauver(); rendre(); });
   on("valider-vite", "onclick", enregistrer);
   document.querySelectorAll("button[data-lieu]").forEach((bt) => (bt.onclick = () => {
     lireForm(); brouillon.lieu = bt.dataset.lieu;

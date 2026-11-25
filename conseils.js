@@ -174,3 +174,28 @@ function brancherBilan() {
   };
   if (b3) b3.onclick = () => { copier(); partager(); toast("Message copié"); };
 }
+
+// ---------- présentation au premier démarrage ----------
+function splash() {
+  return `<div id="splash"><div class="splash-in">
+    <div class="splash-logo">🌱</div>
+    <h1>Mes plantes, sans prise de tête</h1>
+    <p class="splash-intro">Une petite app faite maison pour garder tes plantes en forme, dedans comme dehors. Pas de compte, pas de pub, pas d'abonnement.</p>
+
+    <div class="splash-f"><span>📷</span><div><b>Tu photographies, elle reconnaît.</b><br>Pl@ntNet identifie la plante et sa fiche d'entretien se remplit toute seule. T'as plus qu'à valider.</div></div>
+    <div class="splash-f"><span>💧</span><div><b>Elle te dit quand vérifier.</b><br>Arrosage, engrais, taille, rempotage… Et elle apprend : chaque "pas besoin" espace un peu le rythme.</div></div>
+    <div class="splash-f"><span>🌡️</span><div><b>Elle surveille la météo.</b><br>Alerte gel pour les plantes dehors, feu vert pour les sortir au printemps.</div></div>
+    <div class="splash-f"><span>🪟</span><div><b>Elle juge l'emplacement.</b><br>Fenêtre, distance, radiateur : tu sais tout de suite si ta plante est au bon endroit.</div></div>
+    <div class="splash-f"><span>🩺</span><div><b>Un bilan quand tu veux.</b><br>Tout ton jardin résumé en un message pour une IA européenne, qui te donne ses priorités.</div></div>
+
+    <h2>Ouvert, gratuit, souverain</h2>
+    <ul class="splash-l">
+      <li><b>Pl@ntNet</b> : science participative française (Cirad, Inria, INRAE, IRD), gratuite et sans pub. Si tu l'aimes, <a href="https://donorbox.org/plantnet-donation-fr" target="_blank" rel="noopener">soutiens-la</a>.</li>
+      <li><b>Open-Meteo</b> : météo open source, sans compte.</li>
+      <li><b>Euria</b> (Infomaniak, hébergée en Suisse) et <b>Mistral</b> (Paris) pour les bilans IA. Rien ne part sans que tu l'envoies toi-même.</li>
+      <li><b>Tes données restent dans ton téléphone.</b> Le code de l'app est public sur <a href="https://github.com/Gepamal/Myplants" target="_blank" rel="noopener">GitHub</a>.</li>
+    </ul>
+    <p class="splash-sign">Saad 🌿</p>
+    <button class="ok large" id="splash-ok">C'est parti</button>
+  </div></div>`;
+}
