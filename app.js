@@ -954,7 +954,10 @@ function brancher() {
   on("partager", "onclick", partagerSauvegarde);
   on("import", "onchange", async () => {
     try {
-      const data = JSON.parse(await $("import").files[0].text());
+      const brut = (await $("import").files[0].text()).replace(/^\uFEFF/, "").trim();
+      let data;
+      try { data = JSON.parse(brut.slice(brut.indexOf("{"), brut.lastIndexOf("}") + 1)); }
+      catch { toast("Ce fichier n'est pas une sauvegarde Myplants lisible"); return; }
       // Paquet de photos seul : on l'ajoute sans toucher au reste.
       if (data.format === "myplants-photos" && data.photos) {
         Object.assign(etat.photos, data.photos); sauver();
@@ -962,7 +965,7 @@ function brancher() {
       }
       if (!data.last || !data.log) throw new Error();
       etat = Object.assign(etatDefaut(), data); sauver(); toast("Import réussi"); rendre();
-    } catch { toast("Fichier invalide"); }
+    } catch { toast("Fichier non reconnu : ce n'est ni une sauvegarde ni un paquet de photos Myplants"); }
   });
 }
 
